@@ -1,0 +1,27 @@
+name = "sendbandit-api-billing"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Production routes - uncomment after setting up domain
+# routes = [
+#   { pattern = "api.sendbandit.com/billing/*", zone_name = "sendbandit.com" }
+# ]
+
+[vars]
+ENVIRONMENT = "production"
+
+# Hyperdrive (Supabase PostgreSQL connection pooling)
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "your-hyperdrive-id"
+localConnectionString = "postgresql://postgres.nbfchbemfsythlypjwxi:ZVpUYDZa2smH5Y2p@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
+
+# KV Namespace (for caching, rate limiting)
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-id" # Replace with actual KV ID
+
+# ============ Local Development ============
+[env.local]
+vars = { ENVIRONMENT = "development" }

@@ -1,0 +1,35 @@
+name = "sendbandit-queue-processor"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+
+# Hyperdrive (Supabase PostgreSQL connection pooling)
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "your-hyperdrive-id"
+localConnectionString = "postgresql://postgres.nbfchbemfsythlypjwxi:ZVpUYDZa2smH5Y2p@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
+
+# KV Namespace
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-id" # Replace with actual KV ID
+
+# Queue Consumer
+[[queues.consumers]]
+queue = "sendbandit-messages"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "sendbandit-messages-dlq"
+
+# ============ Local Development ============
+[env.local]
+vars = { ENVIRONMENT = "development" }
+
+[[env.local.queues.consumers]]
+queue = "sendbandit-messages"
+max_batch_size = 10
+max_batch_timeout = 30

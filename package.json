@@ -1,0 +1,31 @@
+{
+  "name": "sendbandit",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:local": "pm2 start ecosystem.config.js",
+    "dev:stop": "pm2 stop all",
+    "dev:logs": "pm2 logs",
+    "dev:status": "pm2 status",
+    "setup:local": "./scripts/setup-local.sh",
+    "cleanup:local": "./scripts/cleanup-local.sh",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "test": "turbo test",
+    "db:generate": "pnpm --filter @sendbandit/database generate",
+    "db:migrate": "pnpm --filter @sendbandit/database migrate",
+    "db:push": "pnpm --filter @sendbandit/database push",
+    "db:studio": "pnpm --filter @sendbandit/database studio",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

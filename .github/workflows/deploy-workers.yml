@@ -1,0 +1,94 @@
+name: Deploy Workers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-workers.yml'
+
+jobs:
+  build-packages:
+    name: Build Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: |
+          pnpm --filter "@sendbandit/shared" build
+          pnpm --filter "@sendbandit/database" build
+          pnpm --filter "@sendbandit/middleware" build
+          pnpm --filter "@sendbandit/channel-providers" build
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-dist
+          path: packages/*/dist
+
+  deploy-workers:
+    name: Deploy ${{ matrix.worker }}
+    needs: build-packages
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        worker:
+          - api-auth
+          - api-clients
+          - api-templates
+          - api-campaigns
+          - api-analytics
+          - api-billing
+          - scheduler
+          - queue-processor
+          - webhooks
+          - realtime
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages-dist
+          path: packages
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: services/${{ matrix.worker }}
+          command: deploy

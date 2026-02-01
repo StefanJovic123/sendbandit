@@ -1,0 +1,26 @@
+{
+  "name": "@sendbandit/scheduler",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir=dist",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sendbandit/database": "workspace:*",
+    "@sendbandit/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.93.3",
+    "drizzle-orm": "^0.38.0",
+    "postgres": "^3.4.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "typescript": "^5.4.0",
+    "wrangler": "^3.30.0"
+  }
+}

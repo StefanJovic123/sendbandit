@@ -1,0 +1,53 @@
+{
+  "name": "@sendbandit/channel-providers",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./whatsapp": {
+      "types": "./dist/whatsapp/index.d.ts",
+      "import": "./dist/whatsapp/index.js"
+    },
+    "./telegram": {
+      "types": "./dist/telegram/index.d.ts",
+      "import": "./dist/telegram/index.js"
+    },
+    "./facebook": {
+      "types": "./dist/facebook/index.d.ts",
+      "import": "./dist/facebook/index.js"
+    },
+    "./instagram": {
+      "types": "./dist/instagram/index.d.ts",
+      "import": "./dist/instagram/index.js"
+    },
+    "./slack": {
+      "types": "./dist/slack/index.d.ts",
+      "import": "./dist/slack/index.js"
+    },
+    "./discord": {
+      "types": "./dist/discord/index.d.ts",
+      "import": "./dist/discord/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sendbandit/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}

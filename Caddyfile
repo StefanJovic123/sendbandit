@@ -1,0 +1,96 @@
+# SendBandit Local Development Caddyfile
+# Run with: caddy run --config Caddyfile
+
+{
+	# Enable local HTTPS with self-signed certificates
+	local_certs
+	admin off
+}
+
+# API Gateway - routes to individual workers
+api.sendbandit.local {
+	tls internal
+
+	# Auth service
+	handle_path /auth/* {
+		reverse_proxy localhost:8787
+	}
+	handle_path /auth {
+		reverse_proxy localhost:8787
+	}
+
+	# Clients service
+	handle_path /clients/* {
+		reverse_proxy localhost:8788
+	}
+	handle_path /clients {
+		reverse_proxy localhost:8788
+	}
+
+	# Templates service
+	handle_path /templates/* {
+		reverse_proxy localhost:8789
+	}
+	handle_path /templates {
+		reverse_proxy localhost:8789
+	}
+
+	# Campaigns service
+	handle_path /campaigns/* {
+		reverse_proxy localhost:8790
+	}
+	handle_path /campaigns {
+		reverse_proxy localhost:8790
+	}
+
+	# Analytics service
+	handle_path /analytics/* {
+		reverse_proxy localhost:8791
+	}
+	handle_path /analytics {
+		reverse_proxy localhost:8791
+	}
+
+	# Billing service
+	handle_path /billing/* {
+		reverse_proxy localhost:8792
+	}
+	handle_path /billing {
+		reverse_proxy localhost:8792
+	}
+
+	# Health check for the gateway itself
+	handle /health {
+		respond "OK" 200
+	}
+
+	# Default 404
+	handle {
+		respond "Not Found" 404
+	}
+}
+
+# Webhooks subdomain
+webhooks.sendbandit.local {
+	tls internal
+	reverse_proxy localhost:8795
+}
+
+# Realtime/WebSocket subdomain
+realtime.sendbandit.local {
+	tls internal
+	reverse_proxy localhost:8796
+}
+
+# Frontend app
+app.sendbandit.local {
+	tls internal
+	reverse_proxy localhost:3000
+}
+
+# Media/R2 mock (for local development)
+media.sendbandit.local {
+	tls internal
+	root * ./storage/media
+	file_server
+}
