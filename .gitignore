@@ -37,3 +37,7 @@ coverage
 storage/
 *.local.db
 .caddy-data/
+
+# Secrets and CLI state
+supabase/.temp/
+*.pem
