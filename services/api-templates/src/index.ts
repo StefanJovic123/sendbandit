@@ -9,7 +9,7 @@ import {
   defaultRateLimit,
   notFound,
 } from '@sendbandit/middleware'
-import { generateId } from '@sendbandit/shared/utils'
+import { generateId, toCamelCase } from '@sendbandit/shared/utils'
 import {
   createTemplateSchema,
   updateTemplateSchema,
@@ -93,11 +93,11 @@ app.get('/', async (c) => {
 
   const templatesWithContent = (templates || []).map((template) => {
     const version = template.current_version_id ? versionMap.get(template.current_version_id) : null
-    return {
+    return toCamelCase({
       ...template,
       content: version?.content || null,
       variables: version?.variables || [],
-    }
+    })
   })
 
   return c.json({ data: templatesWithContent })
@@ -131,12 +131,12 @@ app.get('/:id', async (c) => {
   }
 
   return c.json({
-    data: {
+    data: toCamelCase({
       ...template,
       content: currentVersion?.content || null,
       variables: currentVersion?.variables || [],
-      currentVersion,
-    },
+      currentVersion: currentVersion && toCamelCase(currentVersion),
+    }),
   })
 })
 
@@ -162,7 +162,7 @@ app.get('/:id/versions', async (c) => {
     .eq('template_id', id)
     .order('version', { ascending: false })
 
-  return c.json({ data: versions || [] })
+  return c.json({ data: (versions || []).map(toCamelCase) })
 })
 
 // Create template
@@ -207,12 +207,12 @@ app.post('/', async (c) => {
   return c.json({
     data: {
       id: templateId,
-      organization_id: org.id,
+      organizationId: org.id,
       name: data.name,
       description: data.description,
       channel: data.channel,
       status: 'draft',
-      current_version_id: versionId,
+      currentVersionId: versionId,
     },
   }, 201)
 })
@@ -286,7 +286,7 @@ app.patch('/:id', async (c) => {
     .eq('id', id)
     .single()
 
-  return c.json({ data: updated })
+  return c.json({ data: updated && toCamelCase(updated) })
 })
 
 // Delete template
@@ -358,7 +358,7 @@ app.get('/media', async (c) => {
     .order('created_at', { ascending: false })
     .range((query.page - 1) * query.pageSize, query.page * query.pageSize - 1)
 
-  return c.json({ data: assets || [] })
+  return c.json({ data: (assets || []).map(toCamelCase) })
 })
 
 // Upload media asset
@@ -402,7 +402,7 @@ app.post('/media', async (c) => {
   }
 
   await supabase.from('media_assets').insert(newAsset)
-  return c.json({ data: newAsset }, 201)
+  return c.json({ data: toCamelCase(newAsset) }, 201)
 })
 
 // Delete media asset

@@ -26,6 +26,7 @@ export interface Env {
   CLERK_SECRET_KEY: string
   CLERK_PUBLISHABLE_KEY: string
   CLERK_JWT_KEY?: string
+  CLERK_WEBHOOK_SECRET?: string // Signing secret (whsec_...) of the Clerk webhook endpoint, used by api-auth
 
   // Payments
   STRIPE_SECRET_KEY: string

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import {
   IconArrowLeft,
   IconBuilding,
@@ -51,7 +52,8 @@ type Client = {
 export default function ClientDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [client, setClient] = useState<Client | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
@@ -96,7 +98,8 @@ export default function ClientDetailPage() {
   }, [id, getToken])
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
       return
     }
@@ -147,7 +150,7 @@ export default function ClientDetailPage() {
     }
 
     fetchData()
-  }, [orgId, id, getToken, router])
+  }, [isLoaded, orgId, id, getToken, router])
 
   // Contact action handlers
   function handleSendMessage(contact: Contact) {

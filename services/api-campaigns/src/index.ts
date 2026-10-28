@@ -10,7 +10,7 @@ import {
   notFound,
   badRequest,
 } from '@sendbandit/middleware'
-import { generateId } from '@sendbandit/shared/utils'
+import { generateId, toCamelCase } from '@sendbandit/shared/utils'
 import {
   createCampaignSchema,
   updateCampaignSchema,
@@ -94,7 +94,7 @@ app.get('/', async (c) => {
         if (e.status === 'completed') completedCount++
       }
 
-      return { ...campaign, enrolledCount, completedCount }
+      return toCamelCase({ ...campaign, enrolledCount, completedCount })
     })
   )
 
@@ -131,7 +131,7 @@ app.get('/:id', async (c) => {
   }
 
   return c.json({
-    data: { ...campaign, enrolledCount, completedCount },
+    data: toCamelCase({ ...campaign, enrolledCount, completedCount }),
   })
 })
 
@@ -159,8 +159,10 @@ app.post('/', async (c) => {
     status: 'draft',
   }
 
-  await supabase.from('campaigns').insert(newCampaign)
-  return c.json({ data: { ...newCampaign, enrolledCount: 0, completedCount: 0 } }, 201)
+  const { error: insertError } = await supabase.from('campaigns').insert(newCampaign)
+  if (insertError) throw new Error(insertError.message)
+
+  return c.json({ data: toCamelCase({ ...newCampaign, enrolledCount: 0, completedCount: 0 }) }, 201)
 })
 
 // Update campaign
@@ -188,9 +190,10 @@ app.patch('/:id', async (c) => {
   if (data.flowData !== undefined) updateData.flow_data = data.flowData
   if (data.scheduledAt !== undefined) updateData.scheduled_at = data.scheduledAt
 
-  await supabase.from('campaigns').update(updateData).eq('id', id)
+  const { error: updateError } = await supabase.from('campaigns').update(updateData).eq('id', id)
+  if (updateError) throw new Error(updateError.message)
 
-  return c.json({ data: { ...campaign, ...updateData } })
+  return c.json({ data: toCamelCase({ ...campaign, ...updateData }) })
 })
 
 // Delete campaign
@@ -209,7 +212,9 @@ app.delete('/:id', async (c) => {
     return c.json({ error: { code: 'INVALID_STATE', message: 'Cannot delete active campaign' } }, 400)
   }
 
-  await supabase.from('campaigns').delete().eq('id', id)
+  const { error: deleteError } = await supabase.from('campaigns').delete().eq('id', id)
+  if (deleteError) throw new Error(deleteError.message)
+
   return c.json({ data: { success: true } })
 })
 
@@ -238,7 +243,7 @@ app.post('/:id/activate', async (c) => {
     })
     .eq('id', id)
 
-  return c.json({ data: { ...campaign, status: 'active' } })
+  return c.json({ data: toCamelCase({ ...campaign, status: 'active' }) })
 })
 
 // Pause campaign
@@ -265,7 +270,7 @@ app.post('/:id/pause', async (c) => {
     .update({ status: 'paused', updated_at: new Date().toISOString() })
     .eq('id', id)
 
-  return c.json({ data: { ...campaign, status: 'paused' } })
+  return c.json({ data: toCamelCase({ ...campaign, status: 'paused' }) })
 })
 
 // Resume campaign
@@ -292,7 +297,7 @@ app.post('/:id/resume', async (c) => {
     .update({ status: 'active', updated_at: new Date().toISOString() })
     .eq('id', id)
 
-  return c.json({ data: { ...campaign, status: 'active' } })
+  return c.json({ data: toCamelCase({ ...campaign, status: 'active' }) })
 })
 
 // Stop campaign
@@ -327,7 +332,38 @@ app.post('/:id/stop', async (c) => {
     })
     .eq('id', id)
 
-  return c.json({ data: { ...campaign, status: 'cancelled' } })
+  return c.json({ data: toCamelCase({ ...campaign, status: 'cancelled' }) })
+})
+
+// Duplicate campaign as a new draft. The flow is copied as stored, without re-validation, so campaigns saved in an
+// older flow format can be duplicated too.
+app.post('/:id/duplicate', async (c) => {
+  const { id } = c.req.param()
+  const org = c.get('org')!
+  const supabase = getSupabase(c.env)
+
+  const { data: campaign, error } = await supabase.from('campaigns').select('*').eq('id', id).single()
+
+  if (error || !campaign) throw notFound('Campaign')
+
+  await verifyClientAccess(supabase, campaign.client_id, org.id)
+
+  const copy = {
+    id: generateId('campaign'),
+    client_id: campaign.client_id,
+    name: `${campaign.name.slice(0, 248)} (copy)`,
+    description: campaign.description,
+    type: campaign.type,
+    trigger_type: campaign.trigger_type,
+    trigger_config: campaign.trigger_config,
+    flow_data: campaign.flow_data,
+    status: 'draft',
+  }
+
+  const { error: insertError } = await supabase.from('campaigns').insert(copy)
+  if (insertError) throw new Error(insertError.message)
+
+  return c.json({ data: toCamelCase({ ...copy, enrolledCount: 0, completedCount: 0 }) }, 201)
 })
 
 // Get campaign enrollments
@@ -350,7 +386,7 @@ app.get('/:id/enrollments', async (c) => {
     .order('created_at', { ascending: false })
     .range((query.page - 1) * query.pageSize, query.page * query.pageSize - 1)
 
-  return c.json({ data: enrollments || [] })
+  return c.json({ data: (enrollments || []).map(toCamelCase) })
 })
 
 // Enroll contacts in campaign

@@ -353,6 +353,12 @@ export class SendBanditClient {
       })
     },
 
+    duplicate: async (id: string): Promise<ApiResponse<CampaignResponse>> => {
+      return this.request(`/campaigns/${id}/duplicate`, {
+        method: 'POST',
+      })
+    },
+
     enrollContacts: async (
       id: string,
       contactIds: string[]

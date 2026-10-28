@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import {
   IconArrowLeft,
   IconBrandWhatsapp,
@@ -111,7 +112,8 @@ const channelConfig: Record<
 
 export default function NewChannelPage() {
   const router = useRouter()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [selectedChannel, setSelectedChannel] = useState<ChannelType | ''>('')
   const [name, setName] = useState('')
   const [credentials, setCredentials] = useState<Record<string, string>>({})
@@ -119,10 +121,11 @@ export default function NewChannelPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
     }
-  }, [orgId, router])
+  }, [isLoaded, orgId, router])
 
   function handleChannelChange(channel: ChannelType) {
     setSelectedChannel(channel)

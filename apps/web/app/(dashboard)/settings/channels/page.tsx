@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import {
   IconBrandWhatsapp,
   IconBrandTelegram,
@@ -86,20 +87,22 @@ const channelNames: Record<string, string> = {
 
 export default function ChannelsSettingsPage() {
   const router = useRouter()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [channels, setChannels] = useState<ChannelConnection[]>([])
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState<string | null>(null)
   const [deleteChannel, setDeleteChannel] = useState<ChannelConnection | null>(null)
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
       return
     }
 
     fetchChannels()
-  }, [orgId])
+  }, [isLoaded, orgId])
 
   async function fetchChannels() {
     try {

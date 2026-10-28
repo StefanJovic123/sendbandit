@@ -11,7 +11,7 @@ import {
   notFound,
   badRequest,
 } from '@sendbandit/middleware'
-import { generateId } from '@sendbandit/shared/utils'
+import { generateId, toCamelCase } from '@sendbandit/shared/utils'
 import {
   createClientSchema,
   updateClientSchema,
@@ -399,10 +399,9 @@ app.get('/', async (c) => {
     }
   }
 
-  const clientsWithCounts = (clientsList || []).map((client) => ({
-    ...client,
-    contactsCount: countMap.get(client.id) || 0,
-  }))
+  const clientsWithCounts = (clientsList || []).map((client) =>
+    toCamelCase({ ...client, contactsCount: countMap.get(client.id) || 0 })
+  )
 
   // Get total count
   const { count: total } = await supabase
@@ -438,10 +437,10 @@ app.get('/:id', async (c) => {
     .eq('client_id', id)
 
   return c.json({
-    data: {
+    data: toCamelCase({
       ...client,
       contactsCount: count || 0,
-    },
+    }),
   })
 })
 
@@ -471,7 +470,7 @@ app.post('/', async (c) => {
     .eq('id', newClient.id)
     .single()
 
-  return c.json({ data: { ...created, contactsCount: 0 } }, 201)
+  return c.json({ data: toCamelCase({ ...created, contactsCount: 0 }) }, 201)
 })
 
 // Update client
@@ -499,7 +498,7 @@ app.patch('/:id', async (c) => {
 
   await supabase.from('clients').update(updateData).eq('id', id)
 
-  return c.json({ data: { ...existing, ...updateData } })
+  return c.json({ data: toCamelCase({ ...existing, ...updateData }) })
 })
 
 // Delete client
@@ -517,7 +516,9 @@ app.delete('/:id', async (c) => {
 
   if (error || !existing) throw notFound('Client')
 
-  await supabase.from('clients').delete().eq('id', id)
+  const { error: deleteError } = await supabase.from('clients').delete().eq('id', id)
+  if (deleteError) throw new Error(deleteError.message)
+
   return c.json({ data: { success: true } })
 })
 
@@ -1134,7 +1135,7 @@ app.post('/:clientId/contacts/:contactId/messages', async (c) => {
     throw new Error(errorMessage)
   }
 
-  return c.json({ data: newMessage }, 201)
+  return c.json({ data: toCamelCase(newMessage) }, 201)
 })
 
 // Get message history for contact
@@ -1182,7 +1183,7 @@ app.get('/:clientId/contacts/:contactId/messages', async (c) => {
 
   if (messagesError) throw new Error(messagesError.message)
 
-  return c.json({ data: messages || [] })
+  return c.json({ data: (messages || []).map(toCamelCase) })
 })
 
 // Get single message
@@ -1216,7 +1217,7 @@ app.get('/messages/:id', async (c) => {
 
   // Remove nested data from response
   const { contacts, ...messageData } = message
-  return c.json({ data: messageData })
+  return c.json({ data: toCamelCase(messageData) })
 })
 
 // ============ TAGS ============
@@ -1242,7 +1243,7 @@ app.get('/:clientId/tags', async (c) => {
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
 
-  return c.json({ data: tagsList || [] })
+  return c.json({ data: (tagsList || []).map(toCamelCase) })
 })
 
 // Create tag
@@ -1270,7 +1271,7 @@ app.post('/:clientId/tags', async (c) => {
   }
 
   await supabase.from('tags').insert(newTag)
-  return c.json({ data: newTag }, 201)
+  return c.json({ data: toCamelCase(newTag) }, 201)
 })
 
 // Delete tag
@@ -1315,7 +1316,7 @@ app.get('/:clientId/segments', async (c) => {
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
 
-  return c.json({ data: segmentsList || [] })
+  return c.json({ data: (segmentsList || []).map(toCamelCase) })
 })
 
 // Create segment
@@ -1344,7 +1345,7 @@ app.post('/:clientId/segments', async (c) => {
   }
 
   await supabase.from('segments').insert(newSegment)
-  return c.json({ data: newSegment }, 201)
+  return c.json({ data: toCamelCase(newSegment) }, 201)
 })
 
 export default app

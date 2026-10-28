@@ -210,7 +210,7 @@ export function ImportContactsDialog({
         setCsvData(parsed)
         setColumnMapping(autoDetectMappings(parsed.headers))
         setStep('mapping')
-      } catch (err) {
+      } catch {
         setError('Failed to parse CSV file')
       }
     }

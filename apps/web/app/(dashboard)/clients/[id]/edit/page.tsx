@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import { ClientForm } from '../../client-form'
 import { createBrowserClient } from '@/lib/api'
 
@@ -17,14 +18,16 @@ type Client = {
 export default function EditClientPage() {
   const router = useRouter()
   const params = useParams()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
 
   const id = params.id as string
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
       return
     }
@@ -55,7 +58,7 @@ export default function EditClientPage() {
     }
 
     fetchClient()
-  }, [orgId, id, getToken, router])
+  }, [isLoaded, orgId, id, getToken, router])
 
   if (loading) {
     return (

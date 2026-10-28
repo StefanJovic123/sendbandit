@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useAuth, useOrganization } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
 
 interface OrgSyncProps {
   serverOrgId: string | null
@@ -11,7 +10,6 @@ interface OrgSyncProps {
 export function OrgSync({ serverOrgId }: OrgSyncProps) {
   const { orgId: clientOrgId, isLoaded } = useAuth()
   const { organization } = useOrganization()
-  const router = useRouter()
 
   useEffect(() => {
     if (!isLoaded) return

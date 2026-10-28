@@ -13,7 +13,6 @@ import ReactFlow, {
   addEdge,
   Connection,
   MarkerType,
-  Panel,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import {
@@ -21,8 +20,6 @@ import {
   IconArrowLeft,
   IconPlayerPlay,
   IconDeviceFloppy,
-  IconPlus,
-  IconBolt,
   IconMail,
   IconClock,
   IconGitBranch,
@@ -46,18 +43,56 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TriggerNode, SendNode, WaitNode, ConditionNode, SplitNode } from './flow-nodes'
-import { createCampaign } from '@/lib/actions/campaigns'
+import { activateCampaign, createCampaign, updateCampaign } from '@/lib/actions/campaigns'
 import type { ClientWithCount } from '@/lib/actions/clients'
 import type { TemplateWithContent } from '@/lib/actions/templates'
 
+// Node types and node data follow the API's flow schema (packages/shared/src/validators/campaign.ts), which is also
+// what the queue processor executes.
 const nodeTypes = {
   trigger: TriggerNode,
-  send: SendNode,
+  send_message: SendNode,
   wait: WaitNode,
   condition: ConditionNode,
   split: SplitNode,
+}
+
+type WaitDuration = { value: number; unit: 'minutes' | 'hours' | 'days' }
+type Condition = { field: string; operator: string; value: unknown }
+
+// Flows stored before the builder used that schema have `send` nodes, flat wait/condition/split settings and
+// `yes`/`no` condition handles. Convert them on load so they display correctly and are saved in the current format.
+function normalizeNode(node: Node, triggerType: string): Node {
+  const data = { ...node.data }
+  if (node.type === 'trigger' && data.triggerType === undefined) {
+    // The API keeps the trigger type on the campaign, not on the node
+    data.triggerType = triggerType
+  }
+  if (node.type === 'wait' && data.waitDuration === undefined && data.duration !== undefined) {
+    data.waitDuration = { value: Number(data.duration) || 1, unit: data.unit ?? 'days' }
+    delete data.duration
+    delete data.unit
+  }
+  if (node.type === 'condition' && data.condition === undefined && data.field !== undefined) {
+    data.condition = { field: data.field, operator: data.operator ?? 'equals', value: data.value ?? '' }
+    delete data.field
+    delete data.operator
+    delete data.value
+  }
+  if (node.type === 'split' && data.splitPercentages === undefined && data.splitRatio !== undefined) {
+    const ratioA = Number(data.splitRatio) || 50
+    data.splitPercentages = [ratioA, 100 - ratioA]
+    delete data.splitRatio
+  }
+  return { ...node, type: node.type === 'send' ? 'send_message' : node.type, data }
+}
+
+const LEGACY_CONDITION_HANDLES: Record<string, string> = { yes: 'true', no: 'false' }
+
+function normalizeEdge(edge: Edge): Edge {
+  const sourceHandle = edge.sourceHandle && LEGACY_CONDITION_HANDLES[edge.sourceHandle]
+  return sourceHandle ? { ...edge, sourceHandle } : edge
 }
 
 const initialNodes: Node[] = [
@@ -89,9 +124,14 @@ interface CampaignBuilderProps {
 export function CampaignBuilder({ clients, templates, initialData }: CampaignBuilderProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialData?.nodes || initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialData?.edges || initialEdges)
+  const [nodes, setNodes, onNodesChange] = useNodesState(
+    initialData ? initialData.nodes.map((node) => normalizeNode(node, initialData.triggerType)) : initialNodes
+  )
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    initialData ? initialData.edges.map(normalizeEdge) : initialEdges
+  )
   const [selectedNode, setSelectedNode] = React.useState<Node | null>(null)
+  const [saveError, setSaveError] = React.useState<string | null>(null)
   const [campaignName, setCampaignName] = React.useState(initialData?.name || 'Untitled Campaign')
   const [selectedClient, setSelectedClient] = React.useState(initialData?.clientId || '')
   const [campaignType, setCampaignType] = React.useState<'one_time' | 'recurring' | 'triggered'>(
@@ -144,39 +184,59 @@ export function CampaignBuilder({ clients, templates, initialData }: CampaignBui
     [selectedNode?.id, setNodes]
   )
 
-  const handleSave = async () => {
+  // Save Draft saves; Activate saves, then activates the saved campaign
+  const handleSave = async ({ activate = false } = {}) => {
     if (!selectedClient) {
       alert('Please select a client')
       return
     }
 
     setIsLoading(true)
+    setSaveError(null)
+    const flowData = {
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        type: n.type || 'default',
+        position: n.position,
+        data: n.data,
+      })),
+      edges: edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle || undefined,
+        targetHandle: e.targetHandle || undefined,
+      })),
+    }
     try {
-      await createCampaign({
-        clientId: selectedClient,
-        name: campaignName,
-        type: campaignType,
-        triggerType: 'manual',
-        flowData: {
-          nodes: nodes.map((n) => ({
-            id: n.id,
-            type: n.type || 'default',
-            position: n.position,
-            data: n.data,
-          })),
-          edges: edges.map((e) => ({
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            sourceHandle: e.sourceHandle || undefined,
-            targetHandle: e.targetHandle || undefined,
-          })),
-        },
-      })
+      // Editing saves over the existing campaign; only a new campaign is created
+      const result = initialData
+        ? await updateCampaign(initialData.id, { name: campaignName, flowData })
+        : await createCampaign({
+            clientId: selectedClient,
+            name: campaignName,
+            type: campaignType,
+            triggerType: 'manual',
+            flowData,
+          })
+      if (result.error !== undefined) {
+        setSaveError(result.error)
+        return
+      }
+      if (activate) {
+        const activation = await activateCampaign(result.data.id)
+        if (activation.error !== undefined) {
+          // The campaign exists now, so leave the builder rather than let a second click create another one
+          alert(`The campaign was saved as a draft but could not be activated: ${activation.error}`)
+          router.push(`/campaigns/${result.data.id}`)
+          return
+        }
+      }
       router.push('/campaigns')
       router.refresh()
     } catch (error) {
       console.error('Failed to save campaign:', error)
+      setSaveError('Failed to save campaign. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -197,7 +257,7 @@ export function CampaignBuilder({ clients, templates, initialData }: CampaignBui
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleSave} disabled={isLoading}>
+          <Button variant="outline" onClick={() => handleSave()} disabled={isLoading}>
             {isLoading ? (
               <IconLoader2 className="mr-2 size-4 animate-spin" />
             ) : (
@@ -205,12 +265,18 @@ export function CampaignBuilder({ clients, templates, initialData }: CampaignBui
             )}
             Save Draft
           </Button>
-          <Button disabled={isLoading}>
+          <Button onClick={() => handleSave({ activate: true })} disabled={isLoading}>
             <IconPlayerPlay className="mr-2 size-4" />
             Activate
           </Button>
         </div>
       </div>
+
+      {saveError && (
+        <div role="alert" className="border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          Could not save the campaign: {saveError}
+        </div>
+      )}
 
       <div className="flex flex-1">
         {/* Left Sidebar - Settings */}
@@ -255,7 +321,7 @@ export function CampaignBuilder({ clients, templates, initialData }: CampaignBui
                 <NodeButton
                   icon={<IconMail className="size-4" />}
                   label="Send"
-                  onClick={() => addNode('send')}
+                  onClick={() => addNode('send_message')}
                 />
                 <NodeButton
                   icon={<IconClock className="size-4" />}
@@ -345,14 +411,14 @@ function getDefaultNodeData(type: string): Record<string, unknown> {
   switch (type) {
     case 'trigger':
       return { label: 'Campaign Start', triggerType: 'manual' }
-    case 'send':
+    case 'send_message':
       return { label: 'Send Message', templateId: '', channel: 'whatsapp' }
     case 'wait':
-      return { label: 'Wait', duration: 1, unit: 'days' }
+      return { label: 'Wait', waitDuration: { value: 1, unit: 'days' } }
     case 'condition':
-      return { label: 'Condition', field: '', operator: 'equals', value: '' }
+      return { label: 'Condition', condition: { field: '', operator: 'equals', value: '' } }
     case 'split':
-      return { label: 'A/B Split', splitRatio: 50 }
+      return { label: 'A/B Split', splitPercentages: [50, 50] }
     default:
       return { label: 'Node' }
   }
@@ -368,14 +434,17 @@ function NodeConfigPanel({
   onUpdate: (data: Record<string, unknown>) => void
 }) {
   switch (node.type) {
-    case 'send':
+    case 'send_message':
       return (
         <div className="mt-6 space-y-4">
           <div className="space-y-2">
             <Label>Template</Label>
             <Select
               value={node.data.templateId as string}
-              onValueChange={(v) => onUpdate({ templateId: v })}
+              // The queue processor sends on the node's channel, which is the selected template's channel
+              onValueChange={(v) =>
+                onUpdate({ templateId: v, channel: templates.find((t) => t.id === v)?.channel })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select template" />
@@ -392,7 +461,8 @@ function NodeConfigPanel({
         </div>
       )
 
-    case 'wait':
+    case 'wait': {
+      const waitDuration: WaitDuration = node.data.waitDuration ?? { value: 1, unit: 'days' }
       return (
         <div className="mt-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -401,15 +471,17 @@ function NodeConfigPanel({
               <Input
                 type="number"
                 min={1}
-                value={node.data.duration as number}
-                onChange={(e) => onUpdate({ duration: parseInt(e.target.value) || 1 })}
+                value={waitDuration.value}
+                onChange={(e) =>
+                  onUpdate({ waitDuration: { ...waitDuration, value: parseInt(e.target.value) || 1 } })
+                }
               />
             </div>
             <div className="space-y-2">
               <Label>Unit</Label>
               <Select
-                value={node.data.unit as string}
-                onValueChange={(v) => onUpdate({ unit: v })}
+                value={waitDuration.unit}
+                onValueChange={(v) => onUpdate({ waitDuration: { ...waitDuration, unit: v } })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -424,23 +496,25 @@ function NodeConfigPanel({
           </div>
         </div>
       )
+    }
 
-    case 'condition':
+    case 'condition': {
+      const condition: Condition = node.data.condition ?? { field: '', operator: 'equals', value: '' }
       return (
         <div className="mt-6 space-y-4">
           <div className="space-y-2">
             <Label>Field</Label>
             <Input
-              value={node.data.field as string}
-              onChange={(e) => onUpdate({ field: e.target.value })}
+              value={condition.field}
+              onChange={(e) => onUpdate({ condition: { ...condition, field: e.target.value } })}
               placeholder="e.g., contact.email"
             />
           </div>
           <div className="space-y-2">
             <Label>Operator</Label>
             <Select
-              value={node.data.operator as string}
-              onValueChange={(v) => onUpdate({ operator: v })}
+              value={condition.operator}
+              onValueChange={(v) => onUpdate({ condition: { ...condition, operator: v } })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -457,15 +531,17 @@ function NodeConfigPanel({
           <div className="space-y-2">
             <Label>Value</Label>
             <Input
-              value={node.data.value as string}
-              onChange={(e) => onUpdate({ value: e.target.value })}
+              value={String(condition.value ?? '')}
+              onChange={(e) => onUpdate({ condition: { ...condition, value: e.target.value } })}
               placeholder="Value to compare"
             />
           </div>
         </div>
       )
+    }
 
-    case 'split':
+    case 'split': {
+      const [ratioA = 50] = (node.data.splitPercentages as number[] | undefined) ?? []
       return (
         <div className="mt-6 space-y-4">
           <div className="space-y-2">
@@ -474,15 +550,19 @@ function NodeConfigPanel({
               type="number"
               min={1}
               max={99}
-              value={node.data.splitRatio as number}
-              onChange={(e) => onUpdate({ splitRatio: parseInt(e.target.value) || 50 })}
+              value={ratioA}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 50
+                onUpdate({ splitPercentages: [value, 100 - value] })
+              }}
             />
             <p className="text-xs text-muted-foreground">
-              Variant B will receive {100 - (node.data.splitRatio as number)}%
+              Variant B will receive {100 - ratioA}%
             </p>
           </div>
         </div>
       )
+    }
 
     default:
       return (

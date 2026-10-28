@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import { IconPlus } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -28,11 +29,16 @@ type Campaign = {
 
 export default function CampaignsPage() {
   const router = useRouter()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
+  // Bumped after a card action (duplicate, activate, pause, delete) to load the list again
+  const [reloadKey, setReloadKey] = useState(0)
+  const reload = () => setReloadKey((key) => key + 1)
 
   useEffect(() => {
+    if (!isLoaded) return
     if (!orgId) {
       router.push('/dashboard')
       return
@@ -88,7 +94,7 @@ export default function CampaignsPage() {
     }
 
     fetchCampaigns()
-  }, [orgId, getToken, router])
+  }, [isLoaded, orgId, getToken, router, reloadKey])
 
   const activeCampaigns = campaigns.filter((c) => c.status === 'active')
   const draftCampaigns = campaigns.filter((c) => c.status === 'draft')
@@ -156,23 +162,23 @@ export default function CampaignsPage() {
           </TabsList>
 
           <TabsContent value="all" className="mt-4">
-            <CampaignGrid campaigns={campaigns} />
+            <CampaignGrid campaigns={campaigns} onChanged={reload} />
           </TabsContent>
 
           <TabsContent value="active" className="mt-4">
-            <CampaignGrid campaigns={activeCampaigns} emptyMessage="No active campaigns" />
+            <CampaignGrid campaigns={activeCampaigns} onChanged={reload} emptyMessage="No active campaigns" />
           </TabsContent>
 
           <TabsContent value="draft" className="mt-4">
-            <CampaignGrid campaigns={draftCampaigns} emptyMessage="No draft campaigns" />
+            <CampaignGrid campaigns={draftCampaigns} onChanged={reload} emptyMessage="No draft campaigns" />
           </TabsContent>
 
           <TabsContent value="scheduled" className="mt-4">
-            <CampaignGrid campaigns={scheduledCampaigns} emptyMessage="No scheduled campaigns" />
+            <CampaignGrid campaigns={scheduledCampaigns} onChanged={reload} emptyMessage="No scheduled campaigns" />
           </TabsContent>
 
           <TabsContent value="completed" className="mt-4">
-            <CampaignGrid campaigns={completedCampaigns} emptyMessage="No completed campaigns" />
+            <CampaignGrid campaigns={completedCampaigns} onChanged={reload} emptyMessage="No completed campaigns" />
           </TabsContent>
         </Tabs>
       )}
@@ -182,9 +188,11 @@ export default function CampaignsPage() {
 
 function CampaignGrid({
   campaigns,
+  onChanged,
   emptyMessage = 'No campaigns',
 }: {
   campaigns: Campaign[]
+  onChanged: () => void
   emptyMessage?: string
 }) {
   if (campaigns.length === 0) {
@@ -198,7 +206,7 @@ function CampaignGrid({
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {campaigns.map((campaign) => (
-        <CampaignCard key={campaign.id} campaign={campaign} />
+        <CampaignCard key={campaign.id} campaign={campaign} onChanged={onChanged} />
       ))}
     </div>
   )

@@ -1,7 +1,19 @@
 'use server'
 
+import { ApiError } from '@sendbandit/api-client'
+import type { CampaignResponse } from '@sendbandit/shared/types'
 import { getApiClient } from '@/lib/api.server'
 import { getClients } from './clients'
+
+// Result of an action whose failure the UI shows. Errors are returned rather than thrown because Next.js replaces the
+// message of an error thrown from a server action with a generic one in production.
+export type ActionResult<T> = { data: T; error?: undefined } | { data?: undefined; error: string }
+
+function actionError(error: unknown): { error: string } {
+  if (error instanceof ApiError) return { error: error.message }
+  console.error('Campaign action failed:', error)
+  return { error: 'Something went wrong. Please try again.' }
+}
 
 export type CampaignWithStats = {
   id: string
@@ -114,18 +126,22 @@ export async function createCampaign(data: {
   triggerConfig?: Record<string, unknown>
   flowData?: FlowData
   scheduledAt?: Date
-}) {
-  const client = await getApiClient()
-  const response = await client.campaigns.create(data.clientId, {
-    name: data.name,
-    description: data.description,
-    type: data.type,
-    triggerType: data.triggerType,
-    triggerConfig: data.triggerConfig,
-    flowData: data.flowData,
-    scheduledAt: data.scheduledAt?.toISOString(),
-  })
-  return response.data
+}): Promise<ActionResult<CampaignResponse>> {
+  try {
+    const client = await getApiClient()
+    const response = await client.campaigns.create(data.clientId, {
+      name: data.name,
+      description: data.description,
+      type: data.type,
+      triggerType: data.triggerType,
+      triggerConfig: data.triggerConfig,
+      flowData: data.flowData,
+      scheduledAt: data.scheduledAt?.toISOString(),
+    })
+    return { data: response.data }
+  } catch (error) {
+    return actionError(error)
+  }
 }
 
 /**
@@ -139,15 +155,19 @@ export async function updateCampaign(
     flowData?: FlowData
     scheduledAt?: Date | null
   }
-) {
-  const client = await getApiClient()
-  const response = await client.campaigns.update(id, {
-    name: data.name,
-    description: data.description,
-    flowData: data.flowData,
-    scheduledAt: data.scheduledAt?.toISOString(),
-  })
-  return response.data
+): Promise<ActionResult<CampaignResponse>> {
+  try {
+    const client = await getApiClient()
+    const response = await client.campaigns.update(id, {
+      name: data.name,
+      description: data.description,
+      flowData: data.flowData,
+      scheduledAt: data.scheduledAt?.toISOString(),
+    })
+    return { data: response.data }
+  } catch (error) {
+    return actionError(error)
+  }
 }
 
 /**
@@ -161,10 +181,14 @@ export async function deleteCampaign(id: string) {
 /**
  * Activate a campaign
  */
-export async function activateCampaign(id: string) {
-  const client = await getApiClient()
-  const response = await client.campaigns.activate(id)
-  return response.data
+export async function activateCampaign(id: string): Promise<ActionResult<CampaignResponse>> {
+  try {
+    const client = await getApiClient()
+    const response = await client.campaigns.activate(id)
+    return { data: response.data }
+  } catch (error) {
+    return actionError(error)
+  }
 }
 
 /**

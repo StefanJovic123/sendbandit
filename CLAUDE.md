@@ -195,6 +195,7 @@ pnpm dev:stop
 ### Workers (wrangler.toml secrets)
 - DATABASE_URL (for local dev, Hyperdrive handles production)
 - CLERK_SECRET_KEY
+- CLERK_WEBHOOK_SECRET (api-auth: signing secret of the Clerk webhook endpoint; without it `/webhooks/clerk` returns 500)
 - STRIPE_SECRET_KEY
 - STRIPE_WEBHOOK_SECRET
 

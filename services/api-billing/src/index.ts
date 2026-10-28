@@ -10,7 +10,7 @@ import {
   webhookCorsMiddleware,
   notFound,
 } from '@sendbandit/middleware'
-import { generateId, getPeriod } from '@sendbandit/shared/utils'
+import { generateId, getPeriod, toCamelCase } from '@sendbandit/shared/utils'
 import { PLAN_LIMITS } from '@sendbandit/shared/constants'
 import type { HonoEnv } from '@sendbandit/shared/types'
 
@@ -173,10 +173,10 @@ app.get('/subscription', async (c) => {
   const limits = PLAN_LIMITS[subscription.plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.free
 
   return c.json({
-    data: {
+    data: toCamelCase({
       ...subscription,
       limits,
-    },
+    }),
   })
 })
 
@@ -267,7 +267,7 @@ app.get('/invoices', async (c) => {
     .order('created_at', { ascending: false })
     .limit(24)
 
-  return c.json({ data: invoicesList || [] })
+  return c.json({ data: (invoicesList || []).map(toCamelCase) })
 })
 
 // Create checkout session (for upgrading)

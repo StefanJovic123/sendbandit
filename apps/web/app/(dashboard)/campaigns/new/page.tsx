@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import { CampaignBuilder } from '../campaign-builder'
 import { createBrowserClient } from '@/lib/api'
 
@@ -29,13 +30,15 @@ type Template = {
 
 export default function NewCampaignPage() {
   const router = useRouter()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [clients, setClients] = useState<Client[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
       return
     }
@@ -80,7 +83,7 @@ export default function NewCampaignPage() {
     }
 
     fetchData()
-  }, [orgId, getToken, router])
+  }, [isLoaded, orgId, getToken, router])
 
   if (loading) {
     return (

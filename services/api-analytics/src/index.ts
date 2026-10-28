@@ -9,6 +9,7 @@ import {
   defaultRateLimit,
   notFound,
 } from '@sendbandit/middleware'
+import { toCamelCase } from '@sendbandit/shared/utils'
 import type { HonoEnv } from '@sendbandit/shared/types'
 
 const app = new Hono<HonoEnv>()
@@ -102,7 +103,7 @@ app.get('/dashboard', async (c) => {
       ...totals,
       activeCampaigns: activeCampaignsCount,
       totalContacts: totalContactsCount,
-      dailyStats: stats || [],
+      dailyStats: (stats || []).map(toCamelCase),
     },
   })
 })
@@ -172,7 +173,7 @@ app.get('/campaigns/:id', async (c) => {
         completedAt: campaign.completed_at,
       },
       stats: totals,
-      dailyStats: stats || [],
+      dailyStats: (stats || []).map(toCamelCase),
     },
   })
 })
@@ -239,7 +240,7 @@ app.get('/events', async (c) => {
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  return c.json({ data: events || [] })
+  return c.json({ data: (events || []).map(toCamelCase) })
 })
 
 // Track event (internal use)

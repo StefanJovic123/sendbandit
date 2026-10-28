@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import {
   IconArrowLeft,
   IconBrandWhatsapp,
@@ -98,7 +99,8 @@ const contactChannelFields: Record<ChannelType, keyof Contact> = {
 export default function ContactDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
 
   const clientId = params.id as string
   const contactId = params.contactId as string
@@ -153,7 +155,8 @@ export default function ContactDetailPage() {
   )
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
       return
     }
@@ -203,7 +206,7 @@ export default function ContactDetailPage() {
     }
 
     fetchData()
-  }, [orgId, clientId, contactId, getToken, router])
+  }, [isLoaded, orgId, clientId, contactId, getToken, router])
 
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault()

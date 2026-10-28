@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import {
   IconArrowLeft,
   IconPencil,
   IconPlayerPlay,
   IconPlayerPause,
-  IconPlayerStop,
   IconUsers,
   IconMail,
   IconClock,
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createBrowserClient } from '@/lib/api'
+import { ApiError } from '@sendbandit/api-client'
 
 type Campaign = {
   id: string
@@ -52,14 +53,17 @@ const statusColors: Record<string, string> = {
 export default function CampaignDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
+  const [statusChanging, setStatusChanging] = useState(false)
 
   const id = params.id as string
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
       return
     }
@@ -97,7 +101,21 @@ export default function CampaignDetailPage() {
     }
 
     fetchCampaign()
-  }, [orgId, id, getToken, router])
+  }, [isLoaded, orgId, id, getToken, router])
+
+  async function changeStatus(action: 'activate' | 'pause' | 'resume') {
+    setStatusChanging(true)
+    try {
+      const res = await createBrowserClient(getToken).campaigns[action](id)
+      const status = res.data.status as Campaign['status']
+      setCampaign((current) => (current ? { ...current, status } : current))
+    } catch (error) {
+      console.error(`Failed to ${action} campaign:`, error)
+      alert(error instanceof ApiError ? error.message : `Failed to ${action} campaign`)
+    } finally {
+      setStatusChanging(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -131,19 +149,19 @@ export default function CampaignDetailPage() {
         </div>
         <div className="flex gap-2">
           {campaign.status === 'draft' && (
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => changeStatus('activate')} disabled={statusChanging}>
               <IconPlayerPlay className="mr-2 size-4" />
               Activate
             </Button>
           )}
           {campaign.status === 'active' && (
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => changeStatus('pause')} disabled={statusChanging}>
               <IconPlayerPause className="mr-2 size-4" />
               Pause
             </Button>
           )}
           {campaign.status === 'paused' && (
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => changeStatus('resume')} disabled={statusChanging}>
               <IconPlayerPlay className="mr-2 size-4" />
               Resume
             </Button>

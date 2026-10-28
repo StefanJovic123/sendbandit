@@ -102,8 +102,7 @@ export const SendNode = memo(function SendNode({ data, selected }: NodeProps<Sen
 
 // Wait Node - Delay execution
 interface WaitNodeData extends BaseNodeData {
-  duration: number
-  unit: 'minutes' | 'hours' | 'days'
+  waitDuration?: { value: number; unit: 'minutes' | 'hours' | 'days' }
 }
 
 export const WaitNode = memo(function WaitNode({ data, selected }: NodeProps<WaitNodeData>) {
@@ -129,7 +128,7 @@ export const WaitNode = memo(function WaitNode({ data, selected }: NodeProps<Wai
       <div className="p-3">
         <p className="text-sm text-purple-700 dark:text-purple-300">{data.label}</p>
         <p className="mt-1 text-xs text-purple-600/70 dark:text-purple-400/70">
-          {data.duration} {data.unit}
+          {data.waitDuration?.value} {data.waitDuration?.unit}
         </p>
       </div>
       <Handle
@@ -143,9 +142,7 @@ export const WaitNode = memo(function WaitNode({ data, selected }: NodeProps<Wai
 
 // Condition Node - Branch based on condition
 interface ConditionNodeData extends BaseNodeData {
-  field: string
-  operator: string
-  value: string
+  condition?: { field: string; operator: string; value: unknown }
 }
 
 export const ConditionNode = memo(function ConditionNode({ data, selected }: NodeProps<ConditionNodeData>) {
@@ -170,19 +167,19 @@ export const ConditionNode = memo(function ConditionNode({ data, selected }: Nod
       </div>
       <div className="p-3">
         <p className="text-sm text-green-700 dark:text-green-300">{data.label}</p>
-        {data.field ? (
+        {data.condition?.field ? (
           <p className="mt-1 text-xs text-green-600/70 dark:text-green-400/70">
-            {data.field} {data.operator} {data.value}
+            {data.condition.field} {data.condition.operator} {String(data.condition.value ?? '')}
           </p>
         ) : (
           <p className="mt-1 text-xs text-red-500">Not configured</p>
         )}
       </div>
-      {/* True branch (Yes) */}
+      {/* True branch (Yes). Handle ids are the edge sourceHandle values the queue processor follows. */}
       <Handle
         type="source"
         position={Position.Bottom}
-        id="yes"
+        id="true"
         style={{ left: '30%' }}
         className="!size-3 !border-2 !border-green-600 !bg-white dark:!bg-gray-900"
       />
@@ -190,7 +187,7 @@ export const ConditionNode = memo(function ConditionNode({ data, selected }: Nod
       <Handle
         type="source"
         position={Position.Bottom}
-        id="no"
+        id="false"
         style={{ left: '70%' }}
         className="!size-3 !border-2 !border-red-500 !bg-white dark:!bg-gray-900"
       />
@@ -206,12 +203,11 @@ export const ConditionNode = memo(function ConditionNode({ data, selected }: Nod
 
 // Split Node - A/B testing
 interface SplitNodeData extends BaseNodeData {
-  splitRatio: number
+  splitPercentages?: number[]
 }
 
 export const SplitNode = memo(function SplitNode({ data, selected }: NodeProps<SplitNodeData>) {
-  const ratioA = data.splitRatio
-  const ratioB = 100 - data.splitRatio
+  const [ratioA = 50, ratioB = 100 - ratioA] = data.splitPercentages ?? []
 
   return (
     <div

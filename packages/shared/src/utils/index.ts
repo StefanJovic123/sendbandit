@@ -84,6 +84,30 @@ export function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Om
   return result as Omit<T, K>
 }
 
+type SnakeToCamel<S extends string> = S extends `${infer Head}_${infer Tail}`
+  ? `${Head}${Capitalize<SnakeToCamel<Tail>>}`
+  : S
+
+/**
+ * An object type with its top-level keys converted from snake_case to camelCase
+ */
+export type CamelCaseKeys<T> = {
+  [K in keyof T as K extends string ? SnakeToCamel<K> : K]: T[K]
+}
+
+/**
+ * Convert an object's top-level keys from snake_case to camelCase (`created_at` → `createdAt`).
+ * Services use it to turn database rows into the camelCase shape of the API response types.
+ * Values are left as they are, so JSON columns (flow data, metadata, template content) keep their keys.
+ */
+export function toCamelCase<T extends object>(obj: T): CamelCaseKeys<T> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    result[key.replace(/_([a-z0-9])/g, (_, char: string) => char.toUpperCase())] = value
+  }
+  return result as CamelCaseKeys<T>
+}
+
 /**
  * Deep clone an object
  */

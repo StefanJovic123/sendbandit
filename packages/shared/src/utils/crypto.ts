@@ -63,6 +63,61 @@ export async function verifyHmacSha256(
 }
 
 /**
+ * Verify a Svix webhook signature (the scheme Clerk uses to sign its webhooks).
+ * The signature is base64(HMAC-SHA256(key, `${id}.${timestamp}.${body}`)), where the key is the base64 part of the
+ * `whsec_` secret. The svix-signature header holds space-separated `v1,<signature>` entries (several during secret
+ * rotation). Timestamps further than `toleranceSeconds` from now are rejected so old deliveries can't be replayed.
+ */
+export async function verifySvixSignature(
+  secret: string,
+  headers: { id?: string; timestamp?: string; signature?: string },
+  body: string,
+  toleranceSeconds: number = 5 * 60
+): Promise<boolean> {
+  const { id, timestamp, signature } = headers
+  if (!id || !timestamp || !signature) {
+    return false
+  }
+
+  const sentAt = Number(timestamp)
+  if (!Number.isInteger(sentAt) || Math.abs(Date.now() / 1000 - sentAt) > toleranceSeconds) {
+    return false
+  }
+
+  const keyData = decodeBase64(secret.replace(/^whsec_/, ''))
+  if (!keyData) {
+    return false
+  }
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const signed = await crypto.subtle.sign(
+    'HMAC',
+    cryptoKey,
+    new TextEncoder().encode(`${id}.${timestamp}.${body}`)
+  )
+  const expected = btoa(String.fromCharCode(...new Uint8Array(signed)))
+
+  return signature.split(' ').some((entry) => {
+    const [version, value] = entry.split(',')
+    return version === 'v1' && value !== undefined && timingSafeEqual(value, expected)
+  })
+}
+
+function decodeBase64(value: string): Uint8Array | null {
+  try {
+    return Uint8Array.from(atob(value), (c) => c.charCodeAt(0))
+  } catch {
+    return null
+  }
+}
+
+/**
  * Timing-safe string comparison to prevent timing attacks
  */
 export function timingSafeEqual(a: string, b: string): boolean {

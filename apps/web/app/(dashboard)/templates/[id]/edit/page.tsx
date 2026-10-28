@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import { TemplateForm } from '../../template-form'
 import { createBrowserClient } from '@/lib/api'
 
@@ -18,14 +19,16 @@ type Template = {
 export default function EditTemplatePage() {
   const router = useRouter()
   const params = useParams()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [template, setTemplate] = useState<Template | null>(null)
   const [loading, setLoading] = useState(true)
 
   const id = params.id as string
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
       return
     }
@@ -57,7 +60,7 @@ export default function EditTemplatePage() {
     }
 
     fetchTemplate()
-  }, [orgId, id, getToken, router])
+  }, [isLoaded, orgId, id, getToken, router])
 
   if (loading) {
     return (

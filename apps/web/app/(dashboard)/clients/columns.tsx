@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import Link from 'next/link'
+import { ApiError } from '@sendbandit/api-client'
 import {
   IconDotsVertical,
   IconEye,
@@ -19,6 +21,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useDeleteClient } from '@/lib/hooks'
 
 export type Client = {
   id: string
@@ -99,37 +112,71 @@ export const columns: ColumnDef<Client>[] = [
   },
   {
     id: 'actions',
-    cell: ({ row }) => {
-      const client = row.original
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <IconDotsVertical className="size-4" />
-              <span className="sr-only">Open menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/clients/${client.id}`}>
-                <IconEye className="mr-2 size-4" />
-                View
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/clients/${client.id}/edit`}>
-                <IconPencil className="mr-2 size-4" />
-                Edit
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <IconTrash className="mr-2 size-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
+    cell: ({ row }) => <ClientActions client={row.original} />,
   },
 ]
+
+function ClientActions({ client }: { client: Client }) {
+  const deleteClient = useDeleteClient()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  async function handleDelete() {
+    try {
+      // The clients query is invalidated on success, so the row disappears from the table
+      await deleteClient.mutateAsync(client.id)
+    } catch (error) {
+      console.error('Delete failed:', error)
+      alert(error instanceof ApiError ? error.message : 'Failed to delete client')
+    }
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8">
+            <IconDotsVertical className="size-4" />
+            <span className="sr-only">Open menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/clients/${client.id}`}>
+              <IconEye className="mr-2 size-4" />
+              View
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/clients/${client.id}/edit`}>
+              <IconPencil className="mr-2 size-4" />
+              Edit
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-destructive" onClick={() => setConfirmDelete(true)}>
+            <IconTrash className="mr-2 size-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Client</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{client.name}&quot; will be deleted permanently, together with its {client.contactsCount}{' '}
+              contacts, their messages and the client&apos;s campaigns. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}

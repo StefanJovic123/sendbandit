@@ -8,7 +8,7 @@ import {
   optionalAuthMiddleware,
   authRateLimit,
 } from '@sendbandit/middleware'
-import { generateId } from '@sendbandit/shared/utils'
+import { generateId, toCamelCase, verifySvixSignature } from '@sendbandit/shared/utils'
 import { createOrganizationSchema, updateOrganizationSchema } from '@sendbandit/shared/validators'
 import type { HonoEnv } from '@sendbandit/shared/types'
 
@@ -34,9 +34,30 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok', service: 'api-auth' })
 })
 
-// Clerk webhook for user sync
+// Clerk webhook for user sync. Clerk signs every delivery (Svix); anything unsigned or tampered with is rejected
+// before it can touch the database.
 app.post('/webhooks/clerk', async (c) => {
-  const payload = await c.req.json()
+  const secret = c.env.CLERK_WEBHOOK_SECRET
+  if (!secret) {
+    console.error('[Webhook Error] CLERK_WEBHOOK_SECRET is not set')
+    return c.json({ error: { code: 'WEBHOOK_NOT_CONFIGURED', message: 'Server configuration error' } }, 500)
+  }
+
+  const body = await c.req.text()
+  const verified = await verifySvixSignature(
+    secret,
+    {
+      id: c.req.header('svix-id'),
+      timestamp: c.req.header('svix-timestamp'),
+      signature: c.req.header('svix-signature'),
+    },
+    body
+  )
+  if (!verified) {
+    return c.json({ error: { code: 'UNAUTHORIZED', message: 'Invalid webhook signature' } }, 401)
+  }
+
+  const payload = JSON.parse(body)
   const supabase = getSupabase(c.env)
 
   try {
@@ -174,7 +195,7 @@ app.get('/me', async (c) => {
     return c.json({ error: { code: 'NOT_FOUND', message: 'User not found' } }, 404)
   }
 
-  return c.json({ data: user })
+  return c.json({ data: toCamelCase(user) })
 })
 
 // Get user's organizations
@@ -194,10 +215,9 @@ app.get('/me/organizations', async (c) => {
   const orgIds = memberships.map((m) => m.organization_id)
   const { data: orgs } = await supabase.from('organizations').select('*').in('id', orgIds)
 
-  const result = (orgs || []).map((org) => ({
-    ...org,
-    role: memberships.find((m) => m.organization_id === org.id)?.role,
-  }))
+  const result = (orgs || []).map((org) =>
+    toCamelCase({ ...org, role: memberships.find((m) => m.organization_id === org.id)?.role })
+  )
 
   return c.json({ data: result })
 })
@@ -226,7 +246,7 @@ app.get('/organizations/:id', async (c) => {
     return c.json({ error: { code: 'FORBIDDEN', message: 'Not a member' } }, 403)
   }
 
-  return c.json({ data: { ...org, role: membership.role } })
+  return c.json({ data: toCamelCase({ ...org, role: membership.role }) })
 })
 
 // Get organization members
@@ -260,10 +280,10 @@ app.get('/organizations/:id/members', async (c) => {
   const userIds = members.map((m) => m.user_id)
   const { data: users } = await supabase.from('user_profiles').select('*').in('clerk_id', userIds)
 
-  const result = members.map((member) => ({
-    ...member,
-    user: users?.find((u) => u.clerk_id === member.user_id),
-  }))
+  const result = members.map((member) => {
+    const user = users?.find((u) => u.clerk_id === member.user_id)
+    return toCamelCase({ ...member, user: user && toCamelCase(user) })
+  })
 
   return c.json({ data: result })
 })

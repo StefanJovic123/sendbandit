@@ -2,18 +2,19 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import { ClientForm } from '../client-form'
 
 export default function NewClientPage() {
   const router = useRouter()
-  const { orgId } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
     }
-  }, [orgId, router])
+  }, [isLoaded, orgId, router])
 
   if (!orgId) {
     return null

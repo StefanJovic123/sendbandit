@@ -1,6 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import { useAuth } from '@clerk/nextjs'
+import { ApiError, type SendBanditClient } from '@sendbandit/api-client'
 import {
   IconDotsVertical,
   IconPencil,
@@ -32,6 +35,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { createBrowserClient } from '@/lib/api'
 
 import type { CampaignWithStats } from '@/lib/actions/campaigns'
 
@@ -61,11 +75,25 @@ const typeLabels: Record<CampaignWithStats['type'], string> = {
 
 interface CampaignCardProps {
   campaign: CampaignWithStats
+  // Called after a menu action changed campaigns, so the list can reload
+  onChanged: () => void
 }
 
-export function CampaignCard({ campaign }: CampaignCardProps) {
+export function CampaignCard({ campaign, onChanged }: CampaignCardProps) {
+  const { getToken } = useAuth()
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const status = statusConfig[campaign.status]
   const TypeIcon = typeIcons[campaign.type]
+
+  async function runAction(action: (api: SendBanditClient) => Promise<unknown>) {
+    try {
+      await action(createBrowserClient(getToken))
+      onChanged()
+    } catch (error) {
+      console.error('Campaign action failed:', error)
+      alert(error instanceof ApiError ? error.message : 'Something went wrong. Please try again.')
+    }
+  }
 
   return (
     <Card className="flex flex-col">
@@ -89,24 +117,30 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                   Edit
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => runAction((api) => api.campaigns.duplicate(campaign.id))}>
                 <IconCopy className="mr-2 size-4" />
                 Duplicate
               </DropdownMenuItem>
               {campaign.status === 'draft' && (
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => runAction((api) => api.campaigns.activate(campaign.id))}>
                   <IconPlayerPlay className="mr-2 size-4" />
                   Activate
                 </DropdownMenuItem>
               )}
               {campaign.status === 'active' && (
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => runAction((api) => api.campaigns.pause(campaign.id))}>
                   <IconPlayerPause className="mr-2 size-4" />
                   Pause
                 </DropdownMenuItem>
               )}
+              {campaign.status === 'paused' && (
+                <DropdownMenuItem onClick={() => runAction((api) => api.campaigns.resume(campaign.id))}>
+                  <IconPlayerPlay className="mr-2 size-4" />
+                  Resume
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem className="text-destructive" onClick={() => setConfirmDelete(true)}>
                 <IconTrash className="mr-2 size-4" />
                 Delete
               </DropdownMenuItem>
@@ -162,6 +196,27 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           </span>
         </div>
       </CardFooter>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Campaign</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{campaign.name}&quot; and its enrollments will be deleted permanently. Messages it already sent
+              are kept. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => runAction((api) => api.campaigns.delete(campaign.id))}
+              className="bg-destructive"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

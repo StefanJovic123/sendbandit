@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import {
   IconArrowLeft,
   IconPencil,
@@ -59,14 +60,16 @@ const channelColors: Record<string, string> = {
 export default function TemplateDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const { orgId, getToken } = useAuth()
+  const { getToken } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
   const [template, setTemplate] = useState<Template | null>(null)
   const [loading, setLoading] = useState(true)
 
   const id = params.id as string
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
       return
     }
@@ -101,7 +104,7 @@ export default function TemplateDetailPage() {
     }
 
     fetchTemplate()
-  }, [orgId, id, getToken, router])
+  }, [isLoaded, orgId, id, getToken, router])
 
   if (loading) {
     return (

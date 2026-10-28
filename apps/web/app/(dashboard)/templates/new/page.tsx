@@ -2,18 +2,19 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@clerk/nextjs'
+import { useActiveOrg } from '@/lib/hooks'
 import { TemplateForm } from '../template-form'
 
 export default function NewTemplatePage() {
   const router = useRouter()
-  const { orgId } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
 
   useEffect(() => {
-    if (orgId === null) {
+    if (!isLoaded) return
+    if (!orgId) {
       router.push('/dashboard')
     }
-  }, [orgId, router])
+  }, [isLoaded, orgId, router])
 
   if (!orgId) {
     return null
