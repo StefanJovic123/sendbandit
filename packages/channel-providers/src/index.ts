@@ -6,7 +6,6 @@ export { InstagramProvider } from './instagram'
 export { SlackProvider } from './slack'
 export { DiscordProvider } from './discord'
 
-import type { Channel } from '@sendbandit/shared/types'
 import type { ProviderConfig } from './base/types'
 import { BaseProvider } from './base/provider'
 import { WhatsAppProvider } from './whatsapp'

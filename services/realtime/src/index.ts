@@ -140,10 +140,11 @@ export class RealtimeRoom implements DurableObject {
 
   private handleClientMessage(userId: string, message: { type: string; data?: unknown }) {
     switch (message.type) {
-      case 'ping':
+      case 'ping': {
         const ws = this.connections.get(userId)
         ws?.send(JSON.stringify({ type: 'pong' }))
         break
+      }
 
       case 'subscribe':
         // Handle channel subscriptions

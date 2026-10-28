@@ -386,7 +386,7 @@ app.get('/', async (c) => {
 
   // Get contact counts for each client
   const clientIds = (clientsList || []).map((c) => c.id)
-  let countMap = new Map<string, number>()
+  const countMap = new Map<string, number>()
 
   if (clientIds.length > 0) {
     // Get counts per client using a subquery approach

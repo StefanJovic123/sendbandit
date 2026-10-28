@@ -7,7 +7,7 @@ export type { SupabaseClient }
 export type Database = SupabaseClient
 
 // Create Supabase client (deprecated - use createSupabaseFromEnv instead)
-export function createDb(connectionString: string): never {
+export function createDb(_connectionString: string): never {
   throw new Error(
     'createDb with connection string is deprecated. Use createSupabaseFromEnv or createSupabaseClient from @sendbandit/database instead.'
   )

@@ -5,11 +5,8 @@ import {
   loggerMiddleware,
   errorHandler,
   authMiddleware,
-  optionalAuthMiddleware,
-  authRateLimit,
 } from '@sendbandit/middleware'
 import { generateId, toCamelCase, verifySvixSignature } from '@sendbandit/shared/utils'
-import { createOrganizationSchema, updateOrganizationSchema } from '@sendbandit/shared/validators'
 import type { HonoEnv } from '@sendbandit/shared/types'
 import type { OrganizationRole } from '@sendbandit/shared/constants'
 

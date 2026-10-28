@@ -1,5 +1,4 @@
 import { cors } from 'hono/cors'
-import type { HonoEnv } from '@sendbandit/shared/types'
 
 const ALLOWED_ORIGINS = [
   // Production

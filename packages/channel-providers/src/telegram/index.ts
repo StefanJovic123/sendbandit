@@ -5,11 +5,9 @@ import type {
   SendMessageResponse,
   WebhookEvent,
   VerifyWebhookRequest,
-  MessageStatusEvent,
   IncomingMessageEvent,
 } from '../base/types'
 import type { Channel } from '@sendbandit/shared/types'
-import { sha256 } from '@sendbandit/shared/utils'
 
 const TELEGRAM_API_URL = 'https://api.telegram.org/bot'
 

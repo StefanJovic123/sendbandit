@@ -17,7 +17,7 @@ function getSupabase(env: Env) {
 }
 
 export default {
-  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+  async scheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext) {
     const supabase = getSupabase(env)
     const now = new Date()
 

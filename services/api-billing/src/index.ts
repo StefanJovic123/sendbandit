@@ -8,7 +8,6 @@ import {
   orgContextMiddleware,
   defaultRateLimit,
   webhookCorsMiddleware,
-  notFound,
 } from '@sendbandit/middleware'
 import { generateId, getPeriod, toCamelCase } from '@sendbandit/shared/utils'
 import { PLAN_LIMITS } from '@sendbandit/shared/constants'
@@ -291,7 +290,6 @@ app.post('/checkout', async (c) => {
 app.post('/portal', async (c) => {
   const org = c.get('org')!
   const supabase = getSupabase(c.env)
-  const body = await c.req.json()
 
   const { data: subscription } = await supabase
     .from('subscriptions')

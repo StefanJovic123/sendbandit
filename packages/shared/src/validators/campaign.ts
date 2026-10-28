@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 const campaignTypeSchema = z.enum(['one_time', 'recurring', 'triggered'])
 const triggerTypeSchema = z.enum(['manual', 'schedule', 'event', 'segment_entry', 'segment_exit'])
-const campaignStatusSchema = z.enum(['draft', 'scheduled', 'active', 'paused', 'completed', 'cancelled'])
 const nodeTypeSchema = z.enum([
   'trigger',
   'send_message',

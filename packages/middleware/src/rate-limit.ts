@@ -30,7 +30,6 @@ export function rateLimitMiddleware(config?: Partial<RateLimitConfig>) {
   return createMiddleware<HonoEnv>(async (c, next) => {
     const key = `${keyPrefix}:${keyFn(c)}`
     const now = Date.now()
-    const windowStart = now - windowMs
 
     try {
       // Get current rate limit data from KV

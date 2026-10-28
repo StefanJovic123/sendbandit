@@ -159,11 +159,14 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
 
 ## Still open from the earlier review
 
-- `pnpm lint` still fails, now on real errors. Since the Next.js upgrade (#4) the `@typescript-eslint` plugin is
-  installed (hoisted from `eslint-config-next`), so the root config loads and reports about 21 errors in 10 packages
-  (unused imports/variables, `no-case-declarations`, `prefer-const`); the web app's are fixed. Add
-  `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` (same major, 8) to the root devDependencies:
-  today the plugin is 8.x but the parser is 6.21 (pnpm peer warning).
+- ~~`pnpm lint` fails.~~ **Fixed 2026-10-28.** The root devDependencies now include `eslint` 8.57 and typescript-eslint
+  8.72 (parser and plugin). Before, the 15 non-web packages only got ESLint through pnpm hoisting. A `pnpm.overrides`
+  entry moves `eslint-config-next`'s own parser from 6.21 to 8 (its supported range includes 8), which removes the
+  peer-dependency warning; the lockfile change is limited to lint packages. The 18 remaining errors in 10 packages
+  were fixed: unused imports/variables, a `const`, braces for a `case` block, `_` prefixes for unused parameters,
+  and `ignoreRestSiblings` for the omit-with-rest-destructuring pattern. `pnpm lint` (21/21), `pnpm type-check`
+  (21/21), `pnpm test` and `pnpm install --frozen-lockfile` all pass locally, so the CI job should go green. The
+  services were rebuilt and smoke-tested in the browser (campaigns, clients).
 - `scripts/setup-local.sh` is macOS-only and writes a root `.dev.vars` without the Supabase variables.
 - No automated tests.
 - Check whether `channel_connections.credentials` is encrypted at rest.
