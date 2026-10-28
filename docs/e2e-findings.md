@@ -135,10 +135,15 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     comment explaining the order). Verified in the browser with the signed-in session: before,
     `GET /templates/media` → 404 "Template not found"; after, 200 `{"data":[]}`. `GET /templates/:id` still returns
     200, and the template pages load.
-21. **Seeded campaigns use the builder's old flow format** (`send` nodes, `{duration, unit}` waits), which the queue
-    processor doesn't execute: it skips unknown node types and doesn't wait without `waitDuration`. The builder now
-    converts them when they're opened, but "Welcome Series" is active with the old format stored; re-save it as a draft
-    or update the seed data.
+21. ~~**Seeded campaigns use the builder's old flow format**~~ **Fixed 2026-10-28.** `packages/database/src/seed-real.ts`
+    wrote `send` nodes without a channel, `{duration, unit}` waits and `triggerType` on the trigger node, which the
+    queue processor can't execute. The seed now writes the API format: `send_message` with `templateId` and the
+    template's `channel`, and `waitDuration`. The two campaigns already in the dev database were converted the same
+    way. Their old `flow_data` was backed up first, and each converted flow passed the API's own `updateCampaignSchema`
+    before it was written; `updated_at` was left alone. Verified in the browser: both open in the builder with their
+    nodes shown correctly; saving the draft "Summer Sale Blast" unchanged returns 200, and the stored flow keeps the
+    new format. (The flow type in `packages/database/src/schema/campaigns.ts` is loose (`type: string`), which is how
+    the seed slipped through; the shared `FlowData` type is strict.)
 
 ## Minor
 
