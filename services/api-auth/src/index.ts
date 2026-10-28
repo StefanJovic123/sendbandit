@@ -11,8 +11,23 @@ import {
 import { generateId, toCamelCase, verifySvixSignature } from '@sendbandit/shared/utils'
 import { createOrganizationSchema, updateOrganizationSchema } from '@sendbandit/shared/validators'
 import type { HonoEnv } from '@sendbandit/shared/types'
+import type { OrganizationRole } from '@sendbandit/shared/constants'
 
 const app = new Hono<HonoEnv>()
+
+// Clerk membership role -> organization_members.role, the same mapping as the clerk-webhook edge function
+const CLERK_ROLES: Record<string, OrganizationRole> = {
+  'org:admin': 'admin',
+  'org:member': 'user',
+  // Role keys of older Clerk instances
+  admin: 'admin',
+  basic_member: 'user',
+  guest_member: 'viewer',
+}
+
+function mapClerkRole(clerkRole: string): OrganizationRole {
+  return CLERK_ROLES[clerkRole] ?? 'user'
+}
 
 // Helper to create Supabase client
 function getSupabase(env: HonoEnv['Bindings']) {
@@ -144,8 +159,26 @@ app.post('/webhooks/clerk', async (c) => {
             id: generateId('user'),
             organization_id: org.id,
             user_id: memberData.public_user_data.user_id,
-            role: memberData.role === 'admin' ? 'admin' : 'user',
+            role: mapClerkRole(memberData.role),
           })
+        }
+        break
+      }
+
+      case 'organizationMembership.updated': {
+        const memberData = payload.data
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('clerk_org_id', memberData.organization.id)
+          .single()
+
+        if (org) {
+          await supabase
+            .from('organization_members')
+            .update({ role: mapClerkRole(memberData.role) })
+            .eq('organization_id', org.id)
+            .eq('user_id', memberData.public_user_data.user_id)
         }
         break
       }

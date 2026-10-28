@@ -94,8 +94,13 @@ turned up #18–#22.
 
 7. **Clerk sync is webhook-only, with no backfill.** 2 of 4 Clerk orgs ("Test Org", "My Organization") and 1 of 2 users
    are missing from the DB; picking those orgs gives `ORG_NOT_FOUND`. Writes also need an `organization_members` row.
-8. **api-auth webhook maps roles wrong.** `memberData.role === 'admin'` (`services/api-auth/src/index.ts:126`) never
-   matches Clerk's `org:admin`, so every member becomes `user`. The edge function maps it correctly.
+8. ~~**api-auth webhook maps roles wrong.**~~ **Fixed 2026-10-28.** `memberData.role === 'admin'` never matched Clerk's
+   `org:admin`, so every member became `user`, and role changes (`organizationMembership.updated`) weren't handled at
+   all. api-auth now maps roles like the clerk-webhook edge function (`org:admin` → admin, `org:member` → user, plus
+   the legacy keys `admin`/`basic_member`/`guest_member`) and applies role changes. Verified with Svix-signed
+   deliveries for a throwaway org against the running worker (Clerk can't reach localhost, so no real delivery):
+   before, `org:admin` was stored as `user` and the role change was ignored; after, `admin`/`user`, and the change to
+   admin was applied. The org was deleted again (members cascade). The 8 signature cases from #3 still pass.
 9. **Channel webhook URLs are hardcoded to the dev host** `https://webhooks.sendbandit.local/...`
    (`services/api-clients/src/index.ts:152`); production connections would store an unreachable URL. The existing
    WhatsApp row also has `.../whatsapp/undefined_…` from an earlier bug.
