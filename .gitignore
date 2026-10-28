@@ -41,3 +41,7 @@ storage/
 # Secrets and CLI state
 supabase/.temp/
 *.pem
+
+# Wrangler local secrets
+.dev.vars
+.dev.vars.*
