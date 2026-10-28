@@ -111,10 +111,14 @@ turned up #18–#22.
 12. **Placeholder pages.** Dashboard numbers are hardcoded (`dashboard/page.tsx:47,68`); Analytics shows zeros and makes
     no API call (`analytics/page.tsx:58`, DB has 18 messages); Settings is a static form (empty org name, Save does nothing).
 13. **Add Client saves industry "Technology"** although the form still shows "Select industry".
-18. **Old DB password in all 10 `services/*/wrangler.toml`** (`[[hyperdrive]] localConnectionString`). It is the password
-    rotated on 2026-10-28, so it no longer works, but it shouldn't be in tracked files: use a placeholder (the
-    services reach the DB through supabase-js over HTTPS) or set `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE`
-    in the shell environment.
+18. ~~**Old DB password in all 10 `services/*/wrangler.toml`**~~ **Fixed 2026-10-28.** `[[hyperdrive]]
+    localConnectionString` held the database password that was rotated on 2026-10-28. It now points at a credential-free
+    placeholder (`postgresql://postgres:postgres@localhost:5432/postgres`). Wrangler needs some value to start locally,
+    and no code uses the `HYPERDRIVE` binding (the services use supabase-js). To point local Hyperdrive at a real
+    database, set `WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` in the shell (the variable name for wrangler 3;
+    it overrides the file). No credentialed connection strings are left in tracked files (`setup-local.sh` only has
+    `[password]` templates). The old password is still in git history, which is acceptable because it no longer works.
+    Verified: all five API workers start with the placeholder; clients, templates and campaigns load in the browser.
 19. ~~**The Next.js server never sees the active organization.**~~ **Fixed 2026-10-28: `@clerk/nextjs` 6.39.8.** The Clerk
     instance issues v2 session tokens (org in the `o` claim), and `@clerk/nextjs` 5.7.5 bundled `@clerk/backend` 1.14.1,
     which only reads the v1 `org_id` claim, so server-side `auth().orgId` was always `undefined`. v6 bundles backend

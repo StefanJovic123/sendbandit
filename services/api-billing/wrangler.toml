@@ -15,7 +15,9 @@ ENVIRONMENT = "production"
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "your-hyperdrive-id"
-localConnectionString = "postgresql://postgres.nbfchbemfsythlypjwxi:ZVpUYDZa2smH5Y2p@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
+# Placeholder for local dev; keep credentials out of this file. To use a real database locally, set
+# WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE in your shell (the services use supabase-js today).
+localConnectionString = "postgresql://postgres:postgres@localhost:5432/postgres"
 
 # KV Namespace (for caching, rate limiting)
 [[kv_namespaces]]
