@@ -110,13 +110,17 @@ turned up #18–#22.
     rotated on 2026-10-28, so it no longer works, but it shouldn't be in tracked files: use a placeholder (the
     services reach the DB through supabase-js over HTTPS) or set `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE`
     in the shell environment.
-19. **The Next.js server never sees the active organization.** The Clerk instance issues v2 session tokens (org in the
-    `o` claim; `packages/middleware/src/auth.ts:73` already reads both formats), but `@clerk/nextjs` 5.7.5 bundles
-    `@clerk/backend` 1.14.1, which only reads the v1 `org_id` claim. So server-side `auth().orgId` is always
-    `undefined` (confirmed by logging it in the middleware on hard loads), which is what `lib/auth.ts` (`__org_id`
-    cookie fallback) and `dashboard/org-sync.tsx` work around. There is no 5.x release with a newer backend (5.7.6 is
-    the last). Fix: upgrade to `@clerk/nextjs` 6, then drop the cookie workaround. Test sign-in with "force
-    organization selection" when doing it: newer v6 releases treat sessions without an org as signed out.
+19. ~~**The Next.js server never sees the active organization.**~~ **Fixed 2026-10-28: `@clerk/nextjs` 6.39.8.** The Clerk
+    instance issues v2 session tokens (org in the `o` claim), and `@clerk/nextjs` 5.7.5 bundled `@clerk/backend` 1.14.1,
+    which only reads the v1 `org_id` claim, so server-side `auth().orgId` was always `undefined`. v6 bundles backend
+    2.33.8. Logging it in the middleware on hard loads now prints the org (`org_392l…`) instead of `undefined`. The
+    workarounds are gone: `lib/auth.ts` (the `__org_id` cookie fallback, which nothing imported) and
+    `dashboard/org-sync.tsx` (which compared the client's org with itself, so it never fired). The dashboard now waits
+    for Clerk like the other pages instead of flashing the organization picker. No code needed v6 changes: `auth()` was
+    already awaited everywhere. Verified in the browser: sign-out, logged-out redirect (and the bypass header still
+    blocked), sign-in with the email code straight to the dashboard with the org active (no "choose organization"
+    step), clients and campaigns load through the API, direct load of a campaign page. Type-check and production
+    build pass.
 20. **`GET /templates/media` can't be reached.** api-templates registers `GET /:id` before `GET /media`, so `/media`
     is handled as a template lookup and returns 404 (`services/api-templates/src/index.ts:107`, `:349`). Register the
     media routes first, as api-clients does for `/channels`.

@@ -1,9 +1,7 @@
 'use client'
 
 import { OrganizationList } from '@clerk/nextjs'
-import { useAuth } from '@clerk/nextjs'
 import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react'
-import { OrgSync } from './org-sync'
 import {
   Card,
   CardAction,
@@ -13,15 +11,19 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useActiveOrg } from '@/lib/hooks'
 
 export default function DashboardPage() {
-  const { orgId } = useAuth()
+  const { isLoaded, orgId } = useActiveOrg()
+
+  // Until Clerk has loaded the organization is unknown; showing the picker then would flash it on every load
+  if (!isLoaded) {
+    return null
+  }
 
   if (!orgId) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <OrgSync serverOrgId={orgId ?? null} />
-
         <h1 className="text-2xl font-bold">Welcome to SendBandit</h1>
         <p className="mt-2 text-muted-foreground mb-6">
           Select or create an organization to get started.
