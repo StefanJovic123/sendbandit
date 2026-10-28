@@ -1,7 +1,9 @@
 import { createMiddleware } from 'hono/factory'
-import { createClient } from '@supabase/supabase-js'
+import type { Context } from 'hono'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Env, HonoEnv } from '@sendbandit/shared/types'
-import { hasPermission } from '@sendbandit/shared/constants'
+import { clerkRoleToOrganizationRole, hasPermission } from '@sendbandit/shared/constants'
+import { generateId } from '@sendbandit/shared/utils'
 
 function getSupabase(env: Env) {
   return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
@@ -10,6 +12,89 @@ function getSupabase(env: Env) {
       autoRefreshToken: false,
     },
   })
+}
+
+const CLERK_API_URL = 'https://api.clerk.com/v1'
+
+interface ClerkOrganization {
+  id: string
+  name: string
+  slug: string | null
+  image_url?: string | null
+}
+
+interface ClerkUser {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  image_url?: string | null
+  primary_email_address_id: string | null
+  email_addresses: Array<{ id: string; email_address: string }>
+}
+
+// Organizations, memberships and users normally reach the database through the Clerk webhook. When a delivery never
+// arrived (the endpoint was set up later, or Clerk can't reach a local dev server), the first request with a verified
+// session token for the organization creates them from the Clerk API. The token proves the user's membership and role.
+async function provisionFromClerk(c: Context<HonoEnv>, supabase: SupabaseClient, clerkOrgId: string) {
+  const secretKey = c.env.CLERK_SECRET_KEY
+  if (!secretKey) return null
+
+  const clerk = async <T>(path: string): Promise<T | null> => {
+    const res = await fetch(`${CLERK_API_URL}${path}`, { headers: { Authorization: `Bearer ${secretKey}` } })
+    return res.ok ? ((await res.json()) as T) : null
+  }
+
+  const clerkOrg = await clerk<ClerkOrganization>(`/organizations/${encodeURIComponent(clerkOrgId)}`)
+  if (!clerkOrg) return null
+
+  // Parallel requests (or a late webhook) can create the same rows; the unique keys keep one, so duplicates are ignored
+  await supabase.from('organizations').upsert(
+    {
+      id: generateId('organization'),
+      clerk_org_id: clerkOrg.id,
+      name: clerkOrg.name,
+      slug: clerkOrg.slug ?? clerkOrg.id,
+      logo_url: clerkOrg.image_url ?? null,
+    },
+    { onConflict: 'clerk_org_id', ignoreDuplicates: true }
+  )
+  const { data: org } = await supabase.from('organizations').select('*').eq('clerk_org_id', clerkOrgId).single()
+  if (!org) return null
+
+  const userId = c.get('userId')
+  await supabase.from('organization_members').upsert(
+    {
+      id: generateId('user'),
+      organization_id: org.id,
+      user_id: userId,
+      role: clerkRoleToOrganizationRole(c.get('orgRole')),
+    },
+    { onConflict: 'organization_id,user_id', ignoreDuplicates: true }
+  )
+
+  const { data: profile } = await supabase.from('user_profiles').select('id').eq('clerk_id', userId).maybeSingle()
+  if (!profile) {
+    const user = await clerk<ClerkUser>(`/users/${encodeURIComponent(userId)}`)
+    if (user) {
+      const email =
+        user.email_addresses.find((e) => e.id === user.primary_email_address_id)?.email_address ??
+        user.email_addresses[0]?.email_address ??
+        ''
+      await supabase.from('user_profiles').upsert(
+        {
+          id: generateId('user'),
+          clerk_id: user.id,
+          email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          avatar_url: user.image_url ?? null,
+        },
+        { onConflict: 'clerk_id', ignoreDuplicates: true }
+      )
+    }
+  }
+
+  return org
 }
 
 export const orgContextMiddleware = createMiddleware<HonoEnv>(async (c, next) => {
@@ -31,13 +116,15 @@ export const orgContextMiddleware = createMiddleware<HonoEnv>(async (c, next) =>
 
   const supabase = getSupabase(c.env)
 
-  const { data: org, error } = await supabase
+  const { data: existing, error } = await supabase
     .from('organizations')
     .select('*')
     .eq('clerk_org_id', orgId)
-    .single()
+    .maybeSingle()
 
-  if (error || !org) {
+  const org = existing ?? (error ? null : await provisionFromClerk(c, supabase, orgId))
+
+  if (!org) {
     return c.json(
       { error: { code: 'ORG_NOT_FOUND', message: 'Organization not found' } },
       404

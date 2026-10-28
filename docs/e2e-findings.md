@@ -92,8 +92,19 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
 
 ## Should fix
 
-7. **Clerk sync is webhook-only, with no backfill.** 2 of 4 Clerk orgs ("Test Org", "My Organization") and 1 of 2 users
-   are missing from the DB; picking those orgs gives `ORG_NOT_FOUND`. Writes also need an `organization_members` row.
+7. ~~**Clerk sync is webhook-only, with no backfill.**~~ **Fixed 2026-10-28.** Organizations whose webhook delivery never
+   arrived (2 of 4 orgs and 1 user here, from before the webhook was set up) failed with `ORG_NOT_FOUND`. Webhooks do
+   work now: they go to the `clerk-webhook` Supabase edge function, and a new org showed up in the DB within seconds.
+   When the org isn't in the DB, `orgContextMiddleware` (`packages/middleware/src/org-context.ts`) now creates it from
+   the Clerk API on first use (`CLERK_SECRET_KEY`), together with the user's membership and, if missing, their
+   profile. The verified session token proves the membership; the role comes from its org claim (`o.rol`, now passed
+   on as `orgRole`). Upserts on the unique keys make parallel requests safe. The Clerk role mapping moved to
+   `clerkRoleToOrganizationRole` in `@sendbandit/shared/constants`, which api-auth now uses too; it accepts both the
+   webhook form (`org:admin`) and the v2 token form (`admin`). Verified in the browser with a throwaway Clerk org whose
+   DB rows were deleted to simulate a missed delivery: before, `GET /clients` → 404 and the page loaded forever;
+   after, 200, "No clients yet", and the DB had the org, an `admin` membership and the profile. The org was deleted in
+   Clerk afterwards and the webhook removed its rows. The missing orgs from before get created the first time someone
+   opens them.
 8. ~~**api-auth webhook maps roles wrong.**~~ **Fixed 2026-10-28.** `memberData.role === 'admin'` never matched Clerk's
    `org:admin`, so every member became `user`, and role changes (`organizationMembership.updated`) weren't handled at
    all. api-auth now maps roles like the clerk-webhook edge function (`org:admin` → admin, `org:member` → user, plus
@@ -156,6 +167,9 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     `setup:local`, and `next dev -H 127.0.0.1` loops on Clerk's rewrite (use `localhost`).
 22. The template edit form's Status select only offers `active`/`draft` (`templates/template-form.tsx`), so templates with
     another status (the seeded ones are `approved`) open with an empty Status.
+23. After switching organizations, the Clients page kept showing the previous org's clients until a reload. The
+    react-query keys (`['clients']`, `['templates']`, … in `apps/web/lib/hooks`) don't include the organization, so the
+    cache is shared across orgs. Add `orgId` to the query keys, or clear the cache when the org changes.
 
 ## Still open from the earlier review
 
@@ -167,6 +181,9 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
   and `ignoreRestSiblings` for the omit-with-rest-destructuring pattern. `pnpm lint` (21/21), `pnpm type-check`
   (21/21), `pnpm test` and `pnpm install --frozen-lockfile` all pass locally, so the CI job should go green. The
   services were rebuilt and smoke-tested in the browser (campaigns, clients).
+- Every push to `main` runs the Deploy Web and Deploy Workers workflows, which fail because the repository has no
+  `CLOUDFLARE_API_TOKEN` (workers) or Clerk publishable key (web build) secrets, so nothing is deployed. Once
+  the secrets are added, every push to `main` deploys.
 - `scripts/setup-local.sh` is macOS-only and writes a root `.dev.vars` without the Supabase variables.
 - No automated tests.
 - Check whether `channel_connections.credentials` is encrypted at rest.

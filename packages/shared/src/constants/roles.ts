@@ -69,6 +69,21 @@ export function hasHigherOrEqualRole(role: OrganizationRole, targetRole: Organiz
   return ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[targetRole]
 }
 
+// Clerk organization role -> OrganizationRole. Webhooks and v1 session tokens send `org:admin` / `org:member`, v2
+// session tokens (`o.rol`) drop the prefix, and older Clerk instances use `admin` / `basic_member` / `guest_member`.
+const CLERK_ROLES: Record<string, OrganizationRole> = {
+  'org:admin': 'admin',
+  'org:member': 'user',
+  admin: 'admin',
+  member: 'user',
+  basic_member: 'user',
+  guest_member: 'viewer',
+}
+
+export function clerkRoleToOrganizationRole(clerkRole: string | null | undefined): OrganizationRole {
+  return (clerkRole && CLERK_ROLES[clerkRole]) || 'user'
+}
+
 export function canManageRole(managerRole: OrganizationRole, targetRole: OrganizationRole): boolean {
   // Can only manage roles lower than yours (except owner can manage all)
   if (managerRole === 'owner') return true

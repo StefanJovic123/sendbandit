@@ -51,6 +51,7 @@ export interface HonoEnv {
   Variables: {
     userId: string
     orgId: string | null
+    orgRole: string | null // the user's Clerk role in orgId, from the session token
     org: Organization | null
     requestId: string
   }

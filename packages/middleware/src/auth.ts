@@ -11,6 +11,7 @@ interface ClerkJwtPayload {
   iss: string
   sid?: string
   org_id?: string
+  org_role?: string
   o?: {
     id: string
     rol: string
@@ -72,6 +73,7 @@ export const authMiddleware = createMiddleware<HonoEnv>(async (c, next) => {
     c.set('userId', payload.sub)
     // org_id can be in payload.o.id (new format) or payload.org_id (old format)
     c.set('orgId', payload.o?.id ?? payload.org_id ?? null)
+    c.set('orgRole', payload.o?.rol ?? payload.org_role ?? null)
 
     await next()
   } catch (error) {
@@ -97,6 +99,7 @@ export const optionalAuthMiddleware = createMiddleware<HonoEnv>(async (c, next) 
         if (payload.sub) {
           c.set('userId', payload.sub)
           c.set('orgId', payload.o?.id ?? payload.org_id ?? null)
+          c.set('orgRole', payload.o?.rol ?? payload.org_role ?? null)
         }
       } catch {
         // Ignore auth errors for optional auth
