@@ -58,6 +58,93 @@ function renderTemplate(content: string, variables: Record<string, string>): str
   return content.replace(/\{\{(\w+)\}\}/g, (match, key) => variables[key] ?? match)
 }
 
+// ============ MEDIA ASSETS ============
+// Registered before the /:id template routes, which would otherwise treat "media" as a template id
+
+// List media assets
+app.get('/media', async (c) => {
+  const org = c.get('org')!
+  const supabase = getSupabase(c.env)
+  const query = paginationSchema.parse(c.req.query())
+
+  const { data: assets } = await supabase
+    .from('media_assets')
+    .select('*')
+    .eq('organization_id', org.id)
+    .order('created_at', { ascending: false })
+    .range((query.page - 1) * query.pageSize, query.page * query.pageSize - 1)
+
+  return c.json({ data: (assets || []).map(toCamelCase) })
+})
+
+// Upload media asset
+app.post('/media', async (c) => {
+  const org = c.get('org')!
+  const supabase = getSupabase(c.env)
+
+  // Handle multipart form data
+  const formData = await c.req.formData()
+  const file = formData.get('file') as File | null
+
+  if (!file) {
+    return c.json({ error: { code: 'NO_FILE', message: 'No file provided' } }, 400)
+  }
+
+  const assetId = generateId('event')
+  const r2Key = `${org.id}/${assetId}-${file.name}`
+
+  // Upload to R2
+  await c.env.R2.put(r2Key, file.stream(), {
+    httpMetadata: {
+      contentType: file.type,
+    },
+  })
+
+  // Determine type from mime type
+  let type: 'image' | 'video' | 'document' | 'audio' = 'document'
+  if (file.type.startsWith('image/')) type = 'image'
+  else if (file.type.startsWith('video/')) type = 'video'
+  else if (file.type.startsWith('audio/')) type = 'audio'
+
+  const newAsset = {
+    id: assetId,
+    organization_id: org.id,
+    name: file.name,
+    type,
+    mime_type: file.type,
+    size: file.size,
+    url: `https://media.sendbandit.com/${r2Key}`,
+    r2_key: r2Key,
+  }
+
+  await supabase.from('media_assets').insert(newAsset)
+  return c.json({ data: toCamelCase(newAsset) }, 201)
+})
+
+// Delete media asset
+app.delete('/media/:id', async (c) => {
+  const { id } = c.req.param()
+  const org = c.get('org')!
+  const supabase = getSupabase(c.env)
+
+  const { data: asset, error } = await supabase
+    .from('media_assets')
+    .select('*')
+    .eq('id', id)
+    .eq('organization_id', org.id)
+    .single()
+
+  if (error || !asset) throw notFound('Media asset')
+
+  // Delete from R2
+  await c.env.R2.delete(asset.r2_key)
+
+  await supabase.from('media_assets').delete().eq('id', id)
+  return c.json({ data: { success: true } })
+})
+
+// ============ TEMPLATES ============
+
 // List templates
 app.get('/', async (c) => {
   const org = c.get('org')!
@@ -341,90 +428,6 @@ app.post('/:id/render', async (c) => {
   const rendered = content.text ? renderTemplate(content.text, variables) : ''
 
   return c.json({ data: { content: rendered, variables: version.variables } })
-})
-
-// ============ MEDIA ASSETS ============
-
-// List media assets
-app.get('/media', async (c) => {
-  const org = c.get('org')!
-  const supabase = getSupabase(c.env)
-  const query = paginationSchema.parse(c.req.query())
-
-  const { data: assets } = await supabase
-    .from('media_assets')
-    .select('*')
-    .eq('organization_id', org.id)
-    .order('created_at', { ascending: false })
-    .range((query.page - 1) * query.pageSize, query.page * query.pageSize - 1)
-
-  return c.json({ data: (assets || []).map(toCamelCase) })
-})
-
-// Upload media asset
-app.post('/media', async (c) => {
-  const org = c.get('org')!
-  const supabase = getSupabase(c.env)
-
-  // Handle multipart form data
-  const formData = await c.req.formData()
-  const file = formData.get('file') as File | null
-
-  if (!file) {
-    return c.json({ error: { code: 'NO_FILE', message: 'No file provided' } }, 400)
-  }
-
-  const assetId = generateId('event')
-  const r2Key = `${org.id}/${assetId}-${file.name}`
-
-  // Upload to R2
-  await c.env.R2.put(r2Key, file.stream(), {
-    httpMetadata: {
-      contentType: file.type,
-    },
-  })
-
-  // Determine type from mime type
-  let type: 'image' | 'video' | 'document' | 'audio' = 'document'
-  if (file.type.startsWith('image/')) type = 'image'
-  else if (file.type.startsWith('video/')) type = 'video'
-  else if (file.type.startsWith('audio/')) type = 'audio'
-
-  const newAsset = {
-    id: assetId,
-    organization_id: org.id,
-    name: file.name,
-    type,
-    mime_type: file.type,
-    size: file.size,
-    url: `https://media.sendbandit.com/${r2Key}`,
-    r2_key: r2Key,
-  }
-
-  await supabase.from('media_assets').insert(newAsset)
-  return c.json({ data: toCamelCase(newAsset) }, 201)
-})
-
-// Delete media asset
-app.delete('/media/:id', async (c) => {
-  const { id } = c.req.param()
-  const org = c.get('org')!
-  const supabase = getSupabase(c.env)
-
-  const { data: asset, error } = await supabase
-    .from('media_assets')
-    .select('*')
-    .eq('id', id)
-    .eq('organization_id', org.id)
-    .single()
-
-  if (error || !asset) throw notFound('Media asset')
-
-  // Delete from R2
-  await c.env.R2.delete(asset.r2_key)
-
-  await supabase.from('media_assets').delete().eq('id', id)
-  return c.json({ data: { success: true } })
 })
 
 export default app

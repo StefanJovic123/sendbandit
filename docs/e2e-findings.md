@@ -6,8 +6,8 @@ the `sendbandit-dev` Supabase project, and the Clerk development instance. Signe
 `e2e+clerk_test@example.com` (Clerk test email, code `424242`), admin of "Stefan's Organization".
 Test records created during the run were deleted afterwards.
 
-**Status:** all six must-fix items were fixed and re-tested in the browser on 2026-10-28 (not committed yet). Fixing them
-turned up #18–#22.
+**Status (2026-10-28):** all six must-fix items are fixed, plus #8, #18, #19 and #20, each re-tested after the change.
+They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–#22.
 
 ## What works
 
@@ -130,9 +130,11 @@ turned up #18–#22.
     blocked), sign-in with the email code straight to the dashboard with the org active (no "choose organization"
     step), clients and campaigns load through the API, direct load of a campaign page. Type-check and production
     build pass.
-20. **`GET /templates/media` can't be reached.** api-templates registers `GET /:id` before `GET /media`, so `/media`
-    is handled as a template lookup and returns 404 (`services/api-templates/src/index.ts:107`, `:349`). Register the
-    media routes first, as api-clients does for `/channels`.
+20. ~~**`GET /templates/media` can't be reached.**~~ **Fixed 2026-10-28.** api-templates registered `GET /:id` before
+    `GET /media`, so `/media` was handled as a template lookup. The media routes now come first (moved unchanged, with a
+    comment explaining the order). Verified in the browser with the signed-in session: before,
+    `GET /templates/media` → 404 "Template not found"; after, 200 `{"data":[]}`. `GET /templates/:id` still returns
+    200, and the template pages load.
 21. **Seeded campaigns use the builder's old flow format** (`send` nodes, `{duration, unit}` waits), which the queue
     processor doesn't execute: it skips unknown node types and doesn't wait without `waitDuration`. The builder now
     converts them when they're opened, but "Welcome Series" is active with the old format stored; re-save it as a draft
