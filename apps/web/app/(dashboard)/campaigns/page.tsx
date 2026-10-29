@@ -47,40 +47,23 @@ export default function CampaignsPage() {
     async function fetchCampaigns() {
       try {
         const client = createBrowserClient(getToken)
-        // First get clients
-        const clientsRes = await client.clients.list()
-        const clients = clientsRes.data || []
-
-        if (clients.length === 0) {
-          setCampaigns([])
-          setLoading(false)
-          return
-        }
-
-        const allCampaigns: Campaign[] = []
-        for (const c of clients) {
-          try {
-            const res = await client.campaigns.list(c.id)
-            const mapped = (res.data || []).map((campaign: any) => ({
-              id: campaign.id,
-              name: campaign.name,
-              description: campaign.description || null,
-              type: campaign.type,
-              status: campaign.status,
-              triggerType: campaign.triggerType,
-              clientId: campaign.clientId,
-              clientName: c.name,
-              scheduledAt: campaign.scheduledAt || null,
-              enrolledCount: campaign.enrolledCount || 0,
-              completedCount: campaign.completedCount || 0,
-              createdAt: campaign.createdAt,
-              updatedAt: campaign.updatedAt,
-            }))
-            allCampaigns.push(...mapped)
-          } catch (err) {
-            console.error(`Failed to fetch campaigns for client ${c.id}:`, err)
-          }
-        }
+        // One request for the whole organization; each campaign carries its client's name
+        const res = await client.campaigns.list(undefined, { pageSize: 100 })
+        const allCampaigns: Campaign[] = (res.data || []).map((campaign: any) => ({
+          id: campaign.id,
+          name: campaign.name,
+          description: campaign.description || null,
+          type: campaign.type,
+          status: campaign.status,
+          triggerType: campaign.triggerType,
+          clientId: campaign.clientId,
+          clientName: campaign.clientName,
+          scheduledAt: campaign.scheduledAt || null,
+          enrolledCount: campaign.enrolledCount || 0,
+          completedCount: campaign.completedCount || 0,
+          createdAt: campaign.createdAt,
+          updatedAt: campaign.updatedAt,
+        }))
 
         allCampaigns.sort(
           (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()

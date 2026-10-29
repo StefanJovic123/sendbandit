@@ -292,16 +292,18 @@ export class SendBanditClient {
 
   // Campaigns
   campaigns = {
+    // Without clientId: every campaign of the organization
     list: async (
-      clientId: string,
+      clientId?: string,
       params?: { page?: number; pageSize?: number; status?: string }
     ): Promise<ApiResponse<CampaignResponse[]>> => {
       const searchParams = new URLSearchParams()
+      if (clientId) searchParams.set('clientId', clientId)
       if (params?.page) searchParams.set('page', params.page.toString())
       if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString())
       if (params?.status) searchParams.set('status', params.status)
       const query = searchParams.toString()
-      return this.request(`/campaigns?clientId=${clientId}${query ? `&${query}` : ''}`)
+      return this.request(`/campaigns${query ? `?${query}` : ''}`)
     },
 
     get: async (id: string): Promise<ApiResponse<CampaignResponse>> => {

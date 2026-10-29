@@ -59,42 +59,52 @@ async function verifyClientAccess(
   return client
 }
 
-// List campaigns
+// List campaigns: one client's (clientId) or, without clientId, the whole organization's
 app.get('/', async (c) => {
   const org = c.get('org')!
   const supabase = getSupabase(c.env)
   const query = paginationSchema.parse(c.req.query())
   const clientId = c.req.query('clientId')
 
-  if (!clientId) {
-    return c.json({ error: { code: 'BAD_REQUEST', message: 'clientId is required' } }, 400)
-  }
+  if (clientId) await verifyClientAccess(supabase, clientId, org.id)
 
-  await verifyClientAccess(supabase, clientId, org.id)
-
-  const { data: campaignsList } = await supabase
+  // The inner join limits the list to the organization's clients and brings each campaign's client name
+  let campaignsQuery = supabase
     .from('campaigns')
-    .select('*')
-    .eq('client_id', clientId)
+    .select('*, clients!inner(name, organization_id)')
+    .eq('clients.organization_id', org.id)
+  if (clientId) campaignsQuery = campaignsQuery.eq('client_id', clientId)
+
+  const { data: campaignsList, error } = await campaignsQuery
     .order('created_at', { ascending: false })
     .range((query.page - 1) * query.pageSize, query.page * query.pageSize - 1)
 
-  // Get enrollment stats for each campaign
-  const campaignsWithStats = await Promise.all(
-    (campaignsList || []).map(async (campaign) => {
-      const { data: enrollments } = await supabase
-        .from('campaign_enrollments')
-        .select('status')
-        .eq('campaign_id', campaign.id)
+  if (error) throw new Error(error.message)
 
-      let enrolledCount = 0
-      let completedCount = 0
-      for (const e of enrollments || []) {
-        enrolledCount++
-        if (e.status === 'completed') completedCount++
-      }
+  // Enrollment stats of all listed campaigns in one query
+  const stats = new Map<string, { enrolledCount: number; completedCount: number }>()
+  const campaignIds = (campaignsList || []).map((campaign) => campaign.id)
+  if (campaignIds.length > 0) {
+    const { data: enrollments, error: enrollmentsError } = await supabase
+      .from('campaign_enrollments')
+      .select('campaign_id, status')
+      .in('campaign_id', campaignIds)
 
-      return toCamelCase({ ...campaign, enrolledCount, completedCount })
+    if (enrollmentsError) throw new Error(enrollmentsError.message)
+
+    for (const e of enrollments || []) {
+      const campaignStats = stats.get(e.campaign_id) ?? { enrolledCount: 0, completedCount: 0 }
+      campaignStats.enrolledCount++
+      if (e.status === 'completed') campaignStats.completedCount++
+      stats.set(e.campaign_id, campaignStats)
+    }
+  }
+
+  const campaignsWithStats = (campaignsList || []).map(({ clients, ...campaign }) =>
+    toCamelCase({
+      ...campaign,
+      clientName: (clients as { name: string }).name,
+      ...(stats.get(campaign.id) ?? { enrolledCount: 0, completedCount: 0 }),
     })
   )
 

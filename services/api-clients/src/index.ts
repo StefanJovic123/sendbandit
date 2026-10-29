@@ -378,32 +378,18 @@ app.get('/', async (c) => {
   const supabase = getSupabase(c.env)
   const query = paginationSchema.parse(c.req.query())
 
+  // Each client's contact count comes with it (embedded count), instead of one count query per client
   const { data: clientsList, error } = await supabase
     .from('clients')
-    .select('*')
+    .select('*, contacts(count)')
     .eq('organization_id', org.id)
     .order('created_at', { ascending: false })
     .range((query.page - 1) * query.pageSize, query.page * query.pageSize - 1)
 
   if (error) throw new Error(error.message)
 
-  // Get contact counts for each client
-  const clientIds = (clientsList || []).map((c) => c.id)
-  const countMap = new Map<string, number>()
-
-  if (clientIds.length > 0) {
-    // Get counts per client using a subquery approach
-    for (const clientId of clientIds) {
-      const { count } = await supabase
-        .from('contacts')
-        .select('*', { count: 'exact', head: true })
-        .eq('client_id', clientId)
-      countMap.set(clientId, count || 0)
-    }
-  }
-
-  const clientsWithCounts = (clientsList || []).map((client) =>
-    toCamelCase({ ...client, contactsCount: countMap.get(client.id) || 0 })
+  const clientsWithCounts = (clientsList || []).map(({ contacts, ...client }) =>
+    toCamelCase({ ...client, contactsCount: (contacts as { count: number }[] | null)?.[0]?.count ?? 0 })
   )
 
   // Get total count

@@ -328,6 +328,7 @@ export interface TemplateResponse {
 export interface CampaignResponse {
   id: string
   clientId: string
+  clientName?: string // set by the campaigns list
   name: string
   description: string | null
   type: string

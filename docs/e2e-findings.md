@@ -192,7 +192,16 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     with Channels added). Verified in the browser: the Channels page and a client page show "Channels" and "Clients".
 15. `apps/web/next.config.js:3` turns off TLS verification for the whole dev server (`NODE_TLS_REJECT_UNAUTHORIZED=0`);
     trust the local CA with `NODE_EXTRA_CA_CERTS` instead.
-16. N+1 queries: contact counts per client in `GET /clients`, and the campaigns page fetches campaigns client by client.
+16. ~~N+1 queries: contact counts per client in `GET /clients`, and the campaigns page fetches campaigns client by
+    client.~~ **Fixed 2026-10-29.** `GET /clients` gets the counts with the clients (`contacts(count)`, one query instead
+    of one per client). `GET /campaigns` without `clientId` now lists the whole organization (inner join on the
+    organization's clients, which also gives each campaign's `clientName`), and the enrollment stats of all listed
+    campaigns come from one query instead of one per campaign. The Campaigns page makes one request instead of one per
+    client. Verified in the browser: the Clients page shows the same counts (4/2/2); the Campaigns page lists both
+    campaigns with their clients from one request; in the throwaway org, a test campaign with 3 enrollments (2
+    completed) showed 3 and 2, and only that org's campaigns were listed. Through the API, `?clientId=` still works for
+    the org's own client (200) and gives 404 for another org's client. The test rows were deleted. (The Campaigns page
+    loads up to 100 campaigns; the old per-client requests stopped at 20 per client.)
 17. Local setup: default ports 8787/8790 can clash with other tools (ZDS Studio here), Caddy and PM2 aren't checked by
     `setup:local`, and `next dev -H 127.0.0.1` loops on Clerk's rewrite (use `localhost`).
 22. ~~The template edit form's Status select only offers `active`/`draft` (`templates/template-form.tsx`), so templates
