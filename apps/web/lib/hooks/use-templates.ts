@@ -22,6 +22,9 @@ export function useTemplates(params?: {
       return response.data
     },
     enabled: isLoaded,
+    // Templates are saved through server actions, outside these hooks, so the list is refetched every time it's shown
+    // instead of being trusted for staleTime
+    refetchOnMount: 'always',
   })
 }
 

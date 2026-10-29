@@ -123,7 +123,13 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     account opens and its fields take input (cancelled without saving); the organization switcher's Manage opens the
     organization modal, whose Members page and search work; Sign out signs out, and signing in again works; tapping the
     backdrop closes the sidebar; links still navigate.
-11. **New client doesn't show up until a reload.** After Add Client the list isn't refetched.
+11. ~~**New client doesn't show up until a reload.**~~ **Fixed 2026-10-29.** The Clients and Templates lists come from the
+    react-query cache, which counts a result as fresh for a minute. Clients and templates are saved through server
+    actions, and contacts through the contact dialogs, all outside that cache, so a list opened within the minute
+    showed the old result. The two lists now refetch every time they're shown (`refetchOnMount: 'always'` in
+    `useClients` and `useTemplates`). Verified in the browser in a throwaway org, each time within the minute: Add
+    Client returned to a list that showed the new client right away. The contact count went from 0 to 1 after adding a
+    contact. A new template showed up on Templates. Deleting the client from its row menu emptied the list.
 12. **Placeholder pages.** Dashboard numbers are hardcoded (`dashboard/page.tsx:47,68`); Analytics shows zeros and makes
     no API call (`analytics/page.tsx:58`, DB has 18 messages); Settings is a static form (empty org name, Save does nothing).
 13. **Add Client saves industry "Technology"** although the form still shows "Select industry".

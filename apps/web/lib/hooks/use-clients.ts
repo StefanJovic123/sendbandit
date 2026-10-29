@@ -24,6 +24,9 @@ export function useClients(params?: { page?: number; pageSize?: number }) {
       return response.data
     },
     enabled: isLoaded,
+    // Clients and contacts are also saved outside these hooks (server actions, the contact dialogs), so the list is
+    // refetched every time it's shown instead of being trusted for staleTime
+    refetchOnMount: 'always',
   })
 }
 
