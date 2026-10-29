@@ -172,9 +172,14 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     `setup:local`, and `next dev -H 127.0.0.1` loops on Clerk's rewrite (use `localhost`).
 22. The template edit form's Status select only offers `active`/`draft` (`templates/template-form.tsx`), so templates with
     another status (the seeded ones are `approved`) open with an empty Status.
-23. After switching organizations, the Clients page kept showing the previous org's clients until a reload. The
-    react-query keys (`['clients']`, `['templates']`, … in `apps/web/lib/hooks`) don't include the organization, so the
-    cache is shared across orgs. Add `orgId` to the query keys, or clear the cache when the org changes.
+23. ~~After switching organizations, the Clients page kept showing the previous org's clients until a reload.~~
+    **Fixed 2026-10-29.** The react-query keys (`['clients']`, `['templates']`, … in `apps/web/lib/hooks`) didn't
+    include the organization, so the cache was shared across orgs. Every key in the clients, templates and campaigns
+    hooks now includes the active organization, and the queries wait for Clerk before fetching. The two lists show
+    "Loading…" during that wait (`isPending`) instead of a brief "No clients yet". Verified in the browser with a
+    throwaway org for the e2e user: Stefan's Organization's Clients page listed its 3 clients. Switching to the empty
+    org and opening Clients within the minute the old list counts as fresh showed "No clients yet", where the bug had
+    shown the previous org's clients. Switching back listed the 3 again. Templates load, also on a hard refresh.
 24. On phones the sidebar stays open after tapping a link, so it covers the page that just opened until the backdrop is
     tapped (`components/app-sidebar.tsx`).
 

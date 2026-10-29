@@ -7,9 +7,10 @@ import { TemplatesGrid } from './templates-grid'
 import { useTemplates } from '@/lib/hooks'
 
 export function TemplatesList() {
-  const { data: templatesData, isLoading, error } = useTemplates()
+  // isPending, not isLoading: the query also waits (disabled) until Clerk has loaded
+  const { data: templatesData, isPending, error } = useTemplates()
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-muted-foreground">Loading templates...</div>

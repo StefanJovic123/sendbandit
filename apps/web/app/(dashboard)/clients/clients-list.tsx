@@ -7,9 +7,10 @@ import { ClientsTable } from './clients-table'
 import { useClients } from '@/lib/hooks'
 
 export function ClientsList() {
-  const { data: clientsData, isLoading, error } = useClients()
+  // isPending, not isLoading: the query also waits (disabled) until Clerk has loaded
+  const { data: clientsData, isPending, error } = useClients()
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-muted-foreground">Loading clients...</div>

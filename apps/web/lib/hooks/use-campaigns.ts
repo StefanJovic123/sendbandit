@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApiClient } from './use-api'
+import { useActiveOrg } from './use-active-org'
 import type { CreateCampaignRequest, UpdateCampaignRequest } from '@sendbandit/shared/types'
 
 export function useCampaigns(
@@ -9,32 +10,36 @@ export function useCampaigns(
   params?: { page?: number; pageSize?: number; status?: string }
 ) {
   const api = useApiClient()
+  const { isLoaded, orgId } = useActiveOrg()
 
   return useQuery({
-    queryKey: ['campaigns', clientId, params],
+    // The API answers for the session's active organization, so every key includes it
+    queryKey: ['campaigns', orgId, clientId, params],
     queryFn: async () => {
       const response = await api.campaigns.list(clientId, params)
       return response.data
     },
-    enabled: !!clientId,
+    enabled: isLoaded && !!clientId,
   })
 }
 
 export function useCampaign(id: string) {
   const api = useApiClient()
+  const { isLoaded, orgId } = useActiveOrg()
 
   return useQuery({
-    queryKey: ['campaigns', id],
+    queryKey: ['campaigns', orgId, id],
     queryFn: async () => {
       const response = await api.campaigns.get(id)
       return response.data
     },
-    enabled: !!id,
+    enabled: isLoaded && !!id,
   })
 }
 
 export function useCreateCampaign() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -49,13 +54,14 @@ export function useCreateCampaign() {
       return response.data
     },
     onSuccess: (_, { clientId }) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId, clientId] })
     },
   })
 }
 
 export function useUpdateCampaign() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -64,14 +70,15 @@ export function useUpdateCampaign() {
       return response.data
     },
     onSuccess: (data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-      queryClient.invalidateQueries({ queryKey: ['campaigns', id] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId, id] })
     },
   })
 }
 
 export function useDeleteCampaign() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -79,13 +86,14 @@ export function useDeleteCampaign() {
       await api.campaigns.delete(id)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId] })
     },
   })
 }
 
 export function useActivateCampaign() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -94,14 +102,15 @@ export function useActivateCampaign() {
       return response.data
     },
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-      queryClient.invalidateQueries({ queryKey: ['campaigns', id] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId, id] })
     },
   })
 }
 
 export function usePauseCampaign() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -110,14 +119,15 @@ export function usePauseCampaign() {
       return response.data
     },
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-      queryClient.invalidateQueries({ queryKey: ['campaigns', id] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId, id] })
     },
   })
 }
 
 export function useResumeCampaign() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -126,14 +136,15 @@ export function useResumeCampaign() {
       return response.data
     },
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-      queryClient.invalidateQueries({ queryKey: ['campaigns', id] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId, id] })
     },
   })
 }
 
 export function useStopCampaign() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -142,14 +153,15 @@ export function useStopCampaign() {
       return response.data
     },
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-      queryClient.invalidateQueries({ queryKey: ['campaigns', id] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId, id] })
     },
   })
 }
 
 export function useEnrollContacts() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -164,7 +176,7 @@ export function useEnrollContacts() {
       return response.data
     },
     onSuccess: (_, { campaignId }) => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns', campaignId] })
+      queryClient.invalidateQueries({ queryKey: ['campaigns', orgId, campaignId] })
     },
   })
 }

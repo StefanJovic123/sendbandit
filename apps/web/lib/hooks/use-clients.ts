@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApiClient } from './use-api'
+import { useActiveOrg } from './use-active-org'
 import type {
   CreateClientRequest,
   UpdateClientRequest,
@@ -13,31 +14,36 @@ import type {
 // Clients
 export function useClients(params?: { page?: number; pageSize?: number }) {
   const api = useApiClient()
+  const { isLoaded, orgId } = useActiveOrg()
 
   return useQuery({
-    queryKey: ['clients', params],
+    // The API answers for the session's active organization, so every key includes it
+    queryKey: ['clients', orgId, params],
     queryFn: async () => {
       const response = await api.clients.list(params)
       return response.data
     },
+    enabled: isLoaded,
   })
 }
 
 export function useClient(id: string) {
   const api = useApiClient()
+  const { isLoaded, orgId } = useActiveOrg()
 
   return useQuery({
-    queryKey: ['clients', id],
+    queryKey: ['clients', orgId, id],
     queryFn: async () => {
       const response = await api.clients.get(id)
       return response.data
     },
-    enabled: !!id,
+    enabled: isLoaded && !!id,
   })
 }
 
 export function useCreateClient() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -46,13 +52,14 @@ export function useCreateClient() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId] })
     },
   })
 }
 
 export function useUpdateClient() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -61,14 +68,15 @@ export function useUpdateClient() {
       return response.data
     },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] })
-      queryClient.invalidateQueries({ queryKey: ['clients', id] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId, id] })
     },
   })
 }
 
 export function useDeleteClient() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -76,7 +84,7 @@ export function useDeleteClient() {
       await api.clients.delete(id)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId] })
     },
   })
 }
@@ -87,32 +95,35 @@ export function useContacts(
   params?: { page?: number; pageSize?: number; search?: string }
 ) {
   const api = useApiClient()
+  const { isLoaded, orgId } = useActiveOrg()
 
   return useQuery({
-    queryKey: ['clients', clientId, 'contacts', params],
+    queryKey: ['clients', orgId, clientId, 'contacts', params],
     queryFn: async () => {
       const response = await api.contacts.list(clientId, params)
       return response.data
     },
-    enabled: !!clientId,
+    enabled: isLoaded && !!clientId,
   })
 }
 
 export function useContact(clientId: string, contactId: string) {
   const api = useApiClient()
+  const { isLoaded, orgId } = useActiveOrg()
 
   return useQuery({
-    queryKey: ['clients', clientId, 'contacts', contactId],
+    queryKey: ['clients', orgId, clientId, 'contacts', contactId],
     queryFn: async () => {
       const response = await api.contacts.get(clientId, contactId)
       return response.data
     },
-    enabled: !!clientId && !!contactId,
+    enabled: isLoaded && !!clientId && !!contactId,
   })
 }
 
 export function useCreateContact() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -127,14 +138,15 @@ export function useCreateContact() {
       return response.data
     },
     onSuccess: (_, { clientId }) => {
-      queryClient.invalidateQueries({ queryKey: ['clients', clientId, 'contacts'] })
-      queryClient.invalidateQueries({ queryKey: ['clients', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId, clientId, 'contacts'] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId, clientId] })
     },
   })
 }
 
 export function useUpdateContact() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -151,9 +163,9 @@ export function useUpdateContact() {
       return response.data
     },
     onSuccess: (_, { clientId, contactId }) => {
-      queryClient.invalidateQueries({ queryKey: ['clients', clientId, 'contacts'] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId, clientId, 'contacts'] })
       queryClient.invalidateQueries({
-        queryKey: ['clients', clientId, 'contacts', contactId],
+        queryKey: ['clients', orgId, clientId, 'contacts', contactId],
       })
     },
   })
@@ -161,6 +173,7 @@ export function useUpdateContact() {
 
 export function useDeleteContact() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -174,14 +187,15 @@ export function useDeleteContact() {
       await api.contacts.delete(clientId, contactId)
     },
     onSuccess: (_, { clientId }) => {
-      queryClient.invalidateQueries({ queryKey: ['clients', clientId, 'contacts'] })
-      queryClient.invalidateQueries({ queryKey: ['clients', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId, clientId, 'contacts'] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId, clientId] })
     },
   })
 }
 
 export function useImportContacts() {
   const api = useApiClient()
+  const { orgId } = useActiveOrg()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -196,8 +210,8 @@ export function useImportContacts() {
       return response.data
     },
     onSuccess: (_, { clientId }) => {
-      queryClient.invalidateQueries({ queryKey: ['clients', clientId, 'contacts'] })
-      queryClient.invalidateQueries({ queryKey: ['clients', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId, clientId, 'contacts'] })
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId, clientId] })
     },
   })
 }
