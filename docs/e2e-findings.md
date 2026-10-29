@@ -225,6 +225,12 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     the API's `createTemplateSchema`/`updateTemplateSchema` have no `status`, so new templates are always drafts and
     edits never change the status. Needs a decision: either let the API accept draft ↔ approved (nothing checks the
     status today), or show the status read-only if approval is meant to come from the channel provider.
+27. A campaign whose `type` isn't one of `one_time`/`recurring`/`triggered` crashes the whole Campaigns page
+    ("Element type is invalid … CampaignCard"): `campaign-card.tsx` looks up the icon without a fallback, and the
+    database doesn't constrain `type` (the Drizzle enum is TypeScript-only). Seen with a hand-made test row; the API
+    only creates valid types.
+28. On Channels, the sidebar highlights both Channels and Settings, since `/settings/channels` also starts with
+    `/settings/` (`components/app-sidebar.tsx`).
 
 ## Still open from the earlier review
 
