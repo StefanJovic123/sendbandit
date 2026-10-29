@@ -139,6 +139,9 @@ channelApp.post('/', async (c) => {
     throw badRequest(`Invalid channel. Must be one of: ${validChannels.join(', ')}`)
   }
 
+  // Providers deliver to the webhooks worker, whose public URL depends on the environment
+  if (!c.env.WEBHOOKS_URL) throw new Error('WEBHOOKS_URL is not configured')
+
   const connectionId = generateId('channelConnection')
   const webhookSecret = `whs_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
@@ -149,7 +152,7 @@ channelApp.post('/', async (c) => {
     name: body.name,
     credentials: body.credentials,
     is_active: body.isActive ?? true,
-    webhook_url: `https://webhooks.sendbandit.local/${body.channel}/${connectionId}`,
+    webhook_url: `${c.env.WEBHOOKS_URL.replace(/\/+$/, '')}/${body.channel}/${connectionId}`,
     webhook_secret: webhookSecret,
   }
 

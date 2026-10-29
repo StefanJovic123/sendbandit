@@ -15,6 +15,9 @@ export interface Env {
   // Environment variables
   ENVIRONMENT: 'development' | 'staging' | 'production'
 
+  // Public base URL of the webhooks worker; api-clients builds each channel connection's webhook URL from it
+  WEBHOOKS_URL?: string
+
   // Direct database URL for local development (when Hyperdrive is not available)
   DATABASE_URL?: string
 

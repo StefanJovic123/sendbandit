@@ -112,9 +112,16 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
    deliveries for a throwaway org against the running worker (Clerk can't reach localhost, so no real delivery):
    before, `org:admin` was stored as `user` and the role change was ignored; after, `admin`/`user`, and the change to
    admin was applied. The org was deleted again (members cascade). The 8 signature cases from #3 still pass.
-9. **Channel webhook URLs are hardcoded to the dev host** `https://webhooks.sendbandit.local/...`
-   (`services/api-clients/src/index.ts:152`); production connections would store an unreachable URL. The existing
-   WhatsApp row also has `.../whatsapp/undefined_…` from an earlier bug.
+9. ~~**Channel webhook URLs are hardcoded to the dev host** `https://webhooks.sendbandit.local/...`
+   (`services/api-clients/src/index.ts:152`); production connections would store an unreachable URL.~~ **Fixed
+   2026-10-29.** api-clients builds the URL from a new `WEBHOOKS_URL` var. `wrangler.toml` keeps the local host, and
+   the Deploy Workers workflow passes the production one with `wrangler deploy --var` (repository variable
+   `WEBHOOKS_URL`, default `https://webhooks.sendbandit.com`); a missing value fails channel creation instead of storing
+   a wrong URL. Verified: `wrangler deploy --dry-run` with the workflow's flag lists the var, and with api-clients run
+   locally with `--var WEBHOOKS_URL:https://hooks.e2e.test`, a Telegram connection created in the browser got
+   `https://hooks.e2e.test/telegram/chn_…`. Still open: the existing WhatsApp row's id (and so its URL) is
+   `undefined_…` from an earlier ID-prefix bug; the `webhook_secret` column is made with `Math.random`, though nothing
+   verifies webhooks with it (the providers' own secrets in `credentials` are used).
 10. ~~**Mobile layout: Clerk menus can't be used.**~~ **Fixed 2026-10-29.** The narrow-screen sidebar was a modal Radix
     sheet, which sets `pointer-events: none` on `<body>` and traps focus. Clerk renders the account menu, the
     organization switcher and their modals in portals at the end of `<body>`, so their items got no clicks and their
@@ -170,6 +177,12 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     nodes shown correctly; saving the draft "Summer Sale Blast" unchanged returns 200, and the stored flow keeps the
     new format. (The flow type in `packages/database/src/schema/campaigns.ts` is loose (`type: string`), which is how
     the seed slipped through; the shared `FlowData` type is strict.)
+
+26. Deployed workers would run with `ENVIRONMENT = "development"`: CI deploys with plain `wrangler deploy`, which uses the
+    top-level `[vars]` that local dev uses too (the dry run lists `ENVIRONMENT: "development"`). In production that
+    returns internal error messages to clients (`packages/middleware/src/error-handler.ts`) and makes api-clients send
+    messages directly instead of through the queue. Pass `--var ENVIRONMENT:production` in the deploy workflow like
+    `WEBHOOKS_URL`.
 
 ## Minor
 

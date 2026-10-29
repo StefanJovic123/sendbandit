@@ -91,4 +91,5 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: services/${{ matrix.worker }}
-          command: deploy
+          # wrangler.toml holds the local values; production ones are passed here
+          command: deploy --var WEBHOOKS_URL:${{ vars.WEBHOOKS_URL || 'https://webhooks.sendbandit.com' }}

@@ -196,6 +196,8 @@ pnpm dev:stop
 - DATABASE_URL (for local dev, Hyperdrive handles production)
 - CLERK_SECRET_KEY
 - CLERK_WEBHOOK_SECRET (api-auth: signing secret of the Clerk webhook endpoint; without it `/webhooks/clerk` returns 500)
+- WEBHOOKS_URL (api-clients var, not a secret: public URL of the webhooks worker, used in channel webhook URLs;
+  `wrangler.toml` has the local value, the deploy workflow passes the production one)
 - STRIPE_SECRET_KEY
 - STRIPE_WEBHOOK_SECRET
 
@@ -209,6 +211,9 @@ pnpm dev:stop
 - CLOUDFLARE_ACCOUNT_ID
 - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 - NEXT_PUBLIC_API_URL
+
+### GitHub Actions Variables
+- WEBHOOKS_URL (optional; defaults to https://webhooks.sendbandit.com)
 
 ## Database Schema
 

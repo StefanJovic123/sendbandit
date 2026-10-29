@@ -10,6 +10,9 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "development"
+# Public URL of the webhooks worker, used in channel connections' webhook URLs. The deploy workflow sets the
+# production URL (repository variable WEBHOOKS_URL, default https://webhooks.sendbandit.com).
+WEBHOOKS_URL = "https://webhooks.sendbandit.local"
 
 # Hyperdrive (Supabase PostgreSQL connection pooling)
 [[hyperdrive]]
@@ -31,7 +34,7 @@ queue = "sendbandit-messages"
 
 # ============ Local Development ============
 [env.local]
-vars = { ENVIRONMENT = "development" }
+vars = { ENVIRONMENT = "development", WEBHOOKS_URL = "https://webhooks.sendbandit.local" }
 
 [[env.local.queues.producers]]
 binding = "MESSAGE_QUEUE"
