@@ -28,6 +28,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 
 const navigation = [
@@ -78,6 +79,9 @@ const secondaryNav = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const { setOpenMobile } = useSidebar()
+  // On phones the sidebar is a sheet over the page; close it when a link is followed
+  const closeMobile = () => setOpenMobile(false)
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -89,7 +93,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               size="lg"
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link href="/dashboard">
+              <Link href="/dashboard" onClick={closeMobile}>
                 <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <IconBrandWhatsapp className="size-5" />
                 </div>
@@ -127,7 +131,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     isActive={pathname === item.href}
                     tooltip={item.title}
                   >
-                    <Link href={item.href}>
+                    <Link href={item.href} onClick={closeMobile}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
@@ -150,7 +154,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     isActive={pathname === item.href || pathname.startsWith(item.href + '/')}
                     tooltip={item.title}
                   >
-                    <Link href={item.href}>
+                    <Link href={item.href} onClick={closeMobile}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>

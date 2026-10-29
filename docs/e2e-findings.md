@@ -193,8 +193,10 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     throwaway org for the e2e user: Stefan's Organization's Clients page listed its 3 clients. Switching to the empty
     org and opening Clients within the minute the old list counts as fresh showed "No clients yet", where the bug had
     shown the previous org's clients. Switching back listed the 3 again. Templates load, also on a hard refresh.
-24. On phones the sidebar stays open after tapping a link, so it covers the page that just opened until the backdrop is
-    tapped (`components/app-sidebar.tsx`).
+24. ~~On phones the sidebar stays open after tapping a link, so it covers the page that just opened until the backdrop
+    is tapped (`components/app-sidebar.tsx`).~~ **Fixed 2026-10-29.** The sidebar's links now close the phone sheet when
+    followed (no effect on wider screens). Verified in the browser at phone width: tapping Clients and Channels closed
+    the sidebar and showed the page.
 25. The template form's Status select has no effect. `createTemplate` (`lib/actions/templates.ts`) doesn't send it, and
     the API's `createTemplateSchema`/`updateTemplateSchema` have no `status`, so new templates are always drafts and
     edits never change the status. Needs a decision: either let the API accept draft ↔ approved (nothing checks the
