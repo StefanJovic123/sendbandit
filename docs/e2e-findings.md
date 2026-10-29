@@ -180,8 +180,11 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
 16. N+1 queries: contact counts per client in `GET /clients`, and the campaigns page fetches campaigns client by client.
 17. Local setup: default ports 8787/8790 can clash with other tools (ZDS Studio here), Caddy and PM2 aren't checked by
     `setup:local`, and `next dev -H 127.0.0.1` loops on Clerk's rewrite (use `localhost`).
-22. The template edit form's Status select only offers `active`/`draft` (`templates/template-form.tsx`), so templates with
-    another status (the seeded ones are `approved`) open with an empty Status.
+22. ~~The template edit form's Status select only offers `active`/`draft` (`templates/template-form.tsx`), so templates
+    with another status (the seeded ones are `approved`) open with an empty Status.~~ **Fixed 2026-10-29.** The edit
+    page passed the stored status through a type cast. It now maps it the way the Templates list does: `approved` →
+    Active, anything else → Draft (`templates/[id]/edit/page.tsx`). Verified in the browser: the approved "Welcome
+    Message" opens with Status "Active" (left without saving).
 23. ~~After switching organizations, the Clients page kept showing the previous org's clients until a reload.~~
     **Fixed 2026-10-29.** The react-query keys (`['clients']`, `['templates']`, … in `apps/web/lib/hooks`) didn't
     include the organization, so the cache was shared across orgs. Every key in the clients, templates and campaigns
@@ -192,6 +195,10 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     shown the previous org's clients. Switching back listed the 3 again. Templates load, also on a hard refresh.
 24. On phones the sidebar stays open after tapping a link, so it covers the page that just opened until the backdrop is
     tapped (`components/app-sidebar.tsx`).
+25. The template form's Status select has no effect. `createTemplate` (`lib/actions/templates.ts`) doesn't send it, and
+    the API's `createTemplateSchema`/`updateTemplateSchema` have no `status`, so new templates are always drafts and
+    edits never change the status. Needs a decision: either let the API accept draft ↔ approved (nothing checks the
+    status today), or show the status read-only if approval is meant to come from the channel provider.
 
 ## Still open from the earlier review
 

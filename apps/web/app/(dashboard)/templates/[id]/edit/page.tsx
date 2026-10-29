@@ -48,7 +48,8 @@ export default function EditTemplatePage() {
           name: res.data.name,
           description: res.data.description || undefined,
           channel: res.data.channel as Template['channel'],
-          status: res.data.status as Template['status'],
+          // The form's statuses are the list's: approved templates are "active", the rest count as drafts
+          status: res.data.status === 'approved' ? 'active' : 'draft',
           content: typeof res.data.content === 'string' ? res.data.content : (res.data.content?.text || ''),
         })
       } catch (error) {
