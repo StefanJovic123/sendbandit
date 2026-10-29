@@ -187,8 +187,9 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
 
 ## Minor
 
-14. Page header says "Dashboard" on detail pages (client, campaign builder, channels): `components/site-header.tsx:18`
-    falls back to it for unknown paths.
+14. ~~Page header says "Dashboard" on detail pages (client, campaign builder, channels): `components/site-header.tsx:18`
+    falls back to it for unknown paths.~~ **Fixed 2026-10-29.** Pages under a section now take its title (longest match,
+    with Channels added). Verified in the browser: the Channels page and a client page show "Channels" and "Clients".
 15. `apps/web/next.config.js:3` turns off TLS verification for the whole dev server (`NODE_TLS_REJECT_UNAUTHORIZED=0`);
     trust the local CA with `NODE_EXTRA_CA_CERTS` instead.
 16. N+1 queries: contact counts per client in `GET /clients`, and the campaigns page fetches campaigns client by client.

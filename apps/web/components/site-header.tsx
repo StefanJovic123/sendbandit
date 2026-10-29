@@ -10,12 +10,22 @@ const pageTitles: Record<string, string> = {
   '/templates': 'Templates',
   '/campaigns': 'Campaigns',
   '/analytics': 'Analytics',
+  '/settings/channels': 'Channels',
   '/settings': 'Settings',
+}
+
+// Detail and form pages (/clients/new, /campaigns/:id/edit, …) take the title of their section. The longest matching
+// section wins, so /settings/channels/new is "Channels".
+function titleFor(pathname: string) {
+  const section = Object.keys(pageTitles)
+    .filter((path) => pathname === path || pathname.startsWith(`${path}/`))
+    .sort((a, b) => b.length - a.length)[0]
+  return section ? pageTitles[section] : 'Dashboard'
 }
 
 export function SiteHeader() {
   const pathname = usePathname()
-  const title = pageTitles[pathname] || 'Dashboard'
+  const title = titleFor(pathname)
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
