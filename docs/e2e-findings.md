@@ -132,7 +132,11 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     contact. A new template showed up on Templates. Deleting the client from its row menu emptied the list.
 12. **Placeholder pages.** Dashboard numbers are hardcoded (`dashboard/page.tsx:47,68`); Analytics shows zeros and makes
     no API call (`analytics/page.tsx:58`, DB has 18 messages); Settings is a static form (empty org name, Save does nothing).
-13. **Add Client saves industry "Technology"** although the form still shows "Select industry".
+13. ~~**Add Client saves industry "Technology"** although the form still shows "Select industry".~~ **Fixed
+    2026-10-29.** The Industry select started at `''`. Radix only adds an empty option to the hidden form `<select>` when
+    the value is `undefined`, so the browser selected the first industry and the form submitted it. It now starts at
+    `undefined` (`clients/client-form.tsx`). Verified in the browser: a client added without an industry is listed
+    with "-" (before: "Technology"), and choosing Retail in the edit form saves Retail.
 18. ~~**Old DB password in all 10 `services/*/wrangler.toml`**~~ **Fixed 2026-10-28.** `[[hyperdrive]]
     localConnectionString` held the database password that was rotated on 2026-10-28. It now points at a credential-free
     placeholder (`postgresql://postgres:postgres@localhost:5432/postgres`). Wrangler needs some value to start locally,

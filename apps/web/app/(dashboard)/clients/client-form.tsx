@@ -166,7 +166,9 @@ export function ClientForm({ initialData }: ClientFormProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="industry">Industry</Label>
-              <Select name="industry" defaultValue={initialData?.industry || ''}>
+              {/* undefined, not '': only then does the hidden form <select> get an empty option. Without it the
+                  browser selects the first industry and submits it although none was picked. */}
+              <Select name="industry" defaultValue={initialData?.industry || undefined}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select industry" />
                 </SelectTrigger>
