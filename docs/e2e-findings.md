@@ -178,11 +178,12 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
     new format. (The flow type in `packages/database/src/schema/campaigns.ts` is loose (`type: string`), which is how
     the seed slipped through; the shared `FlowData` type is strict.)
 
-26. Deployed workers would run with `ENVIRONMENT = "development"`: CI deploys with plain `wrangler deploy`, which uses the
-    top-level `[vars]` that local dev uses too (the dry run lists `ENVIRONMENT: "development"`). In production that
-    returns internal error messages to clients (`packages/middleware/src/error-handler.ts`) and makes api-clients send
-    messages directly instead of through the queue. Pass `--var ENVIRONMENT:production` in the deploy workflow like
-    `WEBHOOKS_URL`.
+26. ~~Deployed workers would run with `ENVIRONMENT = "development"`~~ **Fixed 2026-10-29.** CI deployed with plain
+    `wrangler deploy`, which uses the top-level `[vars]` that local dev uses too. In production that would return
+    internal error messages to clients (`packages/middleware/src/error-handler.ts`) and make api-clients send messages
+    directly instead of through the queue. The Deploy Workers workflow now passes `--var ENVIRONMENT:production`.
+    Verified with `wrangler deploy --dry-run` and the workflow's flags: before, `ENVIRONMENT: "development"`; after,
+    `ENVIRONMENT: "production"`.
 
 ## Minor
 
