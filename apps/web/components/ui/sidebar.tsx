@@ -15,6 +15,7 @@ import {
   SheetContent,
   SheetDescription,
   SheetHeader,
+  SheetPortal,
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,6 +32,12 @@ const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+
+// Clerk renders its menus and modals (account menu, organization switcher, Manage account) in portals at the end of
+// <body>, outside the mobile sidebar that hosts their triggers. Their elements carry `cl-` classes.
+function isClerkElement(target: EventTarget | null) {
+  return target instanceof Element && target.closest('[class^="cl-"], [class*=" cl-"]') !== null
+}
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed"
@@ -199,8 +206,16 @@ const Sidebar = React.forwardRef<
     }
 
     if (isMobile) {
+      // Non-modal: a modal sheet disables pointer events outside itself and traps focus, which leaves Clerk's menus
+      // and modals unclickable and their inputs unfocusable. The backdrop stands in for the modal sheet's overlay.
       return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+        <Sheet open={openMobile} onOpenChange={setOpenMobile} modal={false} {...props}>
+          <SheetPortal>
+            <div
+              data-state={openMobile ? "open" : "closed"}
+              className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+            />
+          </SheetPortal>
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
@@ -211,6 +226,10 @@ const Sidebar = React.forwardRef<
               } as React.CSSProperties
             }
             side={side}
+            onInteractOutside={(event) => {
+              // Clicks and focus in Clerk's portals belong to components inside the sidebar
+              if (isClerkElement(event.target)) event.preventDefault()
+            }}
           >
             <SheetHeader className="sr-only">
               <SheetTitle>Sidebar</SheetTitle>

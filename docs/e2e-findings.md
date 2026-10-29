@@ -115,9 +115,14 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
 9. **Channel webhook URLs are hardcoded to the dev host** `https://webhooks.sendbandit.local/...`
    (`services/api-clients/src/index.ts:152`); production connections would store an unreachable URL. The existing
    WhatsApp row also has `.../whatsapp/undefined_…` from an earlier bug.
-10. **Mobile layout: Clerk menus can't be used.** In the narrow-screen sidebar (modal sheet) the account menu opens but
-    its items can't be clicked, clicks fall through to the sidebar, so Sign out / Manage account (and likely the org
-    switcher) don't work on phones (`components/app-sidebar.tsx:169`).
+10. ~~**Mobile layout: Clerk menus can't be used.**~~ **Fixed 2026-10-29.** The narrow-screen sidebar was a modal Radix
+    sheet, which sets `pointer-events: none` on `<body>` and traps focus. Clerk renders the account menu, the
+    organization switcher and their modals in portals at the end of `<body>`, so their items got no clicks and their
+    inputs couldn't take focus. The mobile sheet is now non-modal with its own backdrop, and clicks or focus inside
+    Clerk's portals no longer close it (`components/ui/sidebar.tsx`). Verified in the browser at phone width: Manage
+    account opens and its fields take input (cancelled without saving); the organization switcher's Manage opens the
+    organization modal, whose Members page and search work; Sign out signs out, and signing in again works; tapping the
+    backdrop closes the sidebar; links still navigate.
 11. **New client doesn't show up until a reload.** After Add Client the list isn't refetched.
 12. **Placeholder pages.** Dashboard numbers are hardcoded (`dashboard/page.tsx:47,68`); Analytics shows zeros and makes
     no API call (`analytics/page.tsx:58`, DB has 18 messages); Settings is a static form (empty org name, Save does nothing).
@@ -170,6 +175,8 @@ They're committed on the branch `fix/e2e-findings`. Fixing them turned up #18–
 23. After switching organizations, the Clients page kept showing the previous org's clients until a reload. The
     react-query keys (`['clients']`, `['templates']`, … in `apps/web/lib/hooks`) don't include the organization, so the
     cache is shared across orgs. Add `orgId` to the query keys, or clear the cache when the org changes.
+24. On phones the sidebar stays open after tapping a link, so it covers the page that just opened until the backdrop is
+    tapped (`components/app-sidebar.tsx`).
 
 ## Still open from the earlier review
 
